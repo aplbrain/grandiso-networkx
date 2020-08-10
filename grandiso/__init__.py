@@ -49,6 +49,109 @@ class _UnboundedGrandIsoLimit(_GrandIsoLimit):
         self.wallclock_limit_seconds = None
 
 
+class GrandIsoQueue:
+    """
+    Abstract class for queue management in a Grand-Iso run.
+
+    """
+
+    def __init__(self):
+        raise NotImplementedError()
+
+    def exists(self) -> bool:
+        """
+        Return True if this resource already exists.
+        """
+        return False
+
+    def provision(self, wait_for_completion: bool = True):
+        """
+        Provision this cloud resource.
+
+        Arguments:
+            wait_for_completion (bool: True): Whether to wait for this resource
+                to be provisioned successfully.
+
+        Returns:
+            None
+
+        """
+        raise NotImplementedError()
+
+
+_DEFAULT_SQS_RESOURCE_URL = "http://localhost:8080"
+
+
+class SQSGrandIsoQueue(GrandIsoQueue):
+    """
+    Grand-Iso queue that uses AWS SQS.
+    """
+
+    def __init__(self, resource_url: str = _DEFAULT_SQS_RESOURCE_URL) -> None:
+        """
+        Create a new SQS-backed queue.
+
+        Arguments:
+            resource_url (str: _DEFAULT_SQS_RESOURCE_URL): The URL for the SQS
+                resource that will be used (e.g. if you want to run locally).
+
+        Returns:
+            None
+
+        """
+        self._resource_url = resource_url
+
+
+class GrandIsoFunction:
+    def __init__(self):
+        raise NotImplementedError()
+
+    def exists(self) -> bool:
+        """
+        Return True if this resource already exists.
+        """
+        return False
+
+    def provision(self, wait_for_completion: bool = True):
+        """
+        Provision this cloud resource.
+
+        Arguments:
+            wait_for_completion (bool: True): Whether to wait for this resource
+                to be provisioned successfully.
+
+        Returns:
+            None
+
+        """
+        raise NotImplementedError()
+
+
+class GrandIsoResultsTable:
+    def __init__(self):
+        raise NotImplementedError()
+
+    def exists(self) -> bool:
+        """
+        Return True if this resource already exists.
+        """
+        return False
+
+    def provision(self, wait_for_completion: bool = True):
+        """
+        Provision this cloud resource.
+
+        Arguments:
+            wait_for_completion (bool: True): Whether to wait for this resource
+                to be provisioned successfully.
+
+        Returns:
+            None
+
+        """
+        raise NotImplementedError()
+
+
 class GrandIso:
     """
     A high-level class for managing cloud-scale subgraph isomorphism using the
@@ -87,7 +190,7 @@ class GrandIso:
 
     def __init__(
         self,
-        graph: Optional[Union[grand.Graph]],
+        graph: Optional[Union[grand.Graph]] = None,
         exact_match: bool = False,
         limits: _GrandIsoLimit = None,
         **kwargs
@@ -126,7 +229,7 @@ class GrandIso:
         """
         return self._instance_id
 
-    def ready(self):
+    def is_ready(self) -> bool:
         """
         Returns True if the instance is ready to begin execution.
         """
