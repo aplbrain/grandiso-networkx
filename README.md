@@ -1,40 +1,29 @@
 # Grand Isomorphisms
 
-Grand is a virtual graph database. Because DynamoDB is a true-serverless database, it makes sense to use serverless scalable technologies to run graph queries against Grand.
+Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm that is hugely impactful for large graph analysis. SotA algorithms for this (Ullmann, VF2, BB-Graph) are heavily RAM-bound, but this is due to a large number of small processes each of which hold a small portion of a traversal tree in memory.
 
-In particular, subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm that is hugely impactful for large graph analysis. SotA algorithms for this (Ullmann, VF2, BB-Graph) are heavily RAM-bound, but this is due to a large number of small processes each of which hold a small portion of a traversal tree in memory.
-
-_Grand-Iso_ is a subgraph isomorphism algorithm that leverages serverless technology to run in the AWS cloud at infinite scale.\*
-
-> <small>\* You may discover that "infinite" here is predominantly bounded by your wallet, which is no joke.</small>
+_Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable (albeit much much longer) partial-match queue structure.
 
 ## Pseudocode for novel "Grand-Iso" algorithm
 
 ```
-- Provision a DynamoDB table for result storage.
+- Accept a motif M, and a host graph H.
+- Create an empty list for result storage, R.
+- Create an empty queue, Q.
 - Preprocessing
-    - Identify highest-degree node in motif, M1
-    - Identify second-highest degree node in motif, M2, connected to M1 by
-        a single edge.
-    - Identify all nodes with degree of M1 or greater in the host graph,
-        which also have all required attributes of the M1 and M2 nodes. If
-        neither M1 nor M2 have degree > 1 nor attributes, select M1 and M2 as
-        two nodes with attributes defined.
-    - Enumerate all paths in the host graph from M1 candidates to M2 candidates,
-        as candidate "backbones" in AWS SQS.
+    - Identify the most "interesting" node in motif M, m1.
+    - Add to Q a set of mappings with a single node, with one map for all
+        nodes in H that satisfy the requirements of m1: degree, attributes, etc
 - Motif Search
-    - For each backbone candidate:
-        - Schedule an AWS Lambda:
-            - Pop the backbone from the queue.
-            - Traverse all shortest paths in the motif starting at the nearest
-                of either M1 or M2
-            - If multiple nodes are valid candidates, queue a new backbone with
-                each option, and terminate the current Lambda.
-            - When all paths are valid paths in the host graph, add the list
-                of participant nodes to a result in the DynamoDB table.
+    - "Pop" a backbone B from Q
+        - Identify as m1 the most interesting node in motif M that does not yet
+            have a mapping assigned in B.
+        - Identify all nodes that are valid mappings from the backbone to m1,
+            based upon degree, attributes, etc.
+        - If multiple nodes are valid candidates, add each new backbone to Q.
+        - Otherwise, when all nodes in M have a valid mapping in B to H, add
+            the mapping to the results set R.
+    - Continue while there are still backbones in Q.
 - Reporting
-    - Return a serialization of the results from the DynamoDB table.
-- Cleanup
-    - Delete the backbone queue
-    - Delete the results table (after collection)
+    - Return the set R to the user.
 ```

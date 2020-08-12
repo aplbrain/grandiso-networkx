@@ -1,15 +1,110 @@
 import unittest
 
-from . import GrandIso
+import networkx as nx
+from networkx.algorithms.isomorphism import DiGraphMatcher
+
+from . import find_motifs
 
 
-class TestGrandIso(unittest.TestCase):
-    def test_can_create(self):
-        GrandIso()
+class TestSubgraphMatching(unittest.TestCase):
+    def test_subgraph_equals_graph_triangle(self):
 
-    def test_can_create_without_limits(self):
-        self.assertEqual(GrandIso().limits.wallclock_limit_seconds, None)
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "A")
 
-    def test_is_not_ready_without_graph(self):
-        g = GrandIso()
-        self.assertEqual(g.is_ready(), False)
+        host = nx.DiGraph()
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+
+        self.assertEqual(len(find_motifs(motif, host)), 3)
+
+    def test_subgraph_equals_graph_rect(self):
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "D")
+        motif.add_edge("D", "A")
+
+        host = nx.DiGraph()
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "D")
+        host.add_edge("D", "A")
+
+        self.assertEqual(len(find_motifs(motif, host)), 4)
+
+    def test_rect_count_matches_nx(self):
+
+        host = nx.fast_gnp_random_graph(10, 0.5, directed=True)
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "D")
+        motif.add_edge("D", "A")
+
+        self.assertEqual(
+            len(find_motifs(motif, host)),
+            len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
+        )
+
+    def test_tri_count_matches_nx(self):
+
+        host = nx.fast_gnp_random_graph(10, 0.5, directed=True)
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "A")
+
+        self.assertEqual(
+            len(find_motifs(motif, host)),
+            len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
+        )
+
+    def test_two_hop_count_matches_nx(self):
+
+        host = nx.fast_gnp_random_graph(10, 0.5, directed=True)
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+
+        self.assertEqual(
+            len(find_motifs(motif, host)),
+            len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
+        )
+
+    def test_high_degree_high_density_count_matches_nx(self):
+
+        host = nx.fast_gnp_random_graph(10, 1, directed=True)
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("A", "C")
+        motif.add_edge("A", "D")
+        motif.add_edge("A", "E")
+
+        self.assertEqual(
+            len(find_motifs(motif, host)),
+            len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
+        )
+
+    def test_high_degree_low_density_count_matches_nx(self):
+
+        host = nx.fast_gnp_random_graph(10, 0.3, directed=True)
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("A", "C")
+        motif.add_edge("A", "D")
+        motif.add_edge("A", "E")
+
+        self.assertEqual(
+            len(find_motifs(motif, host)),
+            len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
+        )

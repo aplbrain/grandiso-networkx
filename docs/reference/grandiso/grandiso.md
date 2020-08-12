@@ -1,61 +1,26 @@
-## _Class_ `_GrandIsoLimit`
+## *Function* `sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict`
 
-A limit supervisor that limits the execution of a GrandIso algorithm run.
 
-## _Class_ `GrandIso`
+Sort the nodes in a motif by their interestingness.
 
-A high-level class for managing cloud-scale subgraph isomorphism using the novel grand-iso backbone algorithm.
+Most interesting nodes are defined to be those that most rapidly filter the list of nodes down to a smaller set.
 
-## _Function_ `instance_id(self)`
 
-Get the unique instance ID for this run-instance of Grand-Iso.
 
-## _Function_ `ready(self)`
+## *Function* `find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]`
 
-Returns True if the instance is ready to begin execution.
 
-## _Function_ `set_graph(self, graph: grand.Graph)`
+Get a list of mappings from motif node IDs to host graph IDs.
 
-Set a pointer to the dynamo-backed grand Graph object.
+### form
 
-### Arguments
-
-> -   **graph** (`grand.Graph`: `None`): The graph to use (must be dynamo-backed)
-
-### Returns
-
-    None
-
-## _Function_ `_provision_queue(self)`
-
-Provision the SQS for this run.
-
-## _Function_ `_provision_backbone_lambda(self)`
-
-Provision a new lambda function to run each backbone check.
-
-## _Function_ `_provision_results_table(self)`
-
-Provision a new DynamoDB table to hold the results of this run.
-
-## _Function_ `provision_resources(self, wait: bool = True)`
-
-Provision all cloud resources that will be required for this run.
+```
+> - **motif_id** (`None`: `None`): host_id, ...}] ```
 
 ### Arguments
-
-> -   **wait** (`bool`: `True`): Whether to wait for all resources before
-
-        returning from this call. If False, the user must await the         creation of resources manually.
+> - **motif** (`nx.DiGraph`: `None`): The motif graph (needle) to search for
+> - **host** (`nx.DiGraph`: `None`): The host graph (haystack) to search within
 
 ### Returns
+> - **List[dict]** (`None`: `None`): A list of mappings from motif node IDs to host graph IDs
 
-> -   **any]** (`None`: `None`): A tuple containing the provisioned resources
-
-## _Function_ `destroy(self)`
-
-Destroy this instance, force-terminating any running tasks.
-
-Destroys and terminates all cloud resources associated with this instance, so exercise proper caution.
-
-This function is best reserved for when a run appears to have gone astray and is running for too long.

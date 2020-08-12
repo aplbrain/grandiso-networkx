@@ -1,371 +1,307 @@
-from typing import Union, Optional
+"""
+- Provision a results table.
+- Preprocessing
+    - Identify highest-degree node in motif, M1
+    - Identify second-highest degree node in motif, M2, connected to M1 by
+        a single edge.
+    - Identify all nodes with degree of M1 or greater in the host graph,
+        which also have all required attributes of the M1 and M2 nodes. If
+        neither M1 nor M2 have degree > 1 nor attributes, select M1 and M2 as
+        two nodes with attributes defined.
+    - Enumerate all paths in the host graph from M1 candidates to M2 candidates,
+        as candidate "backbones" in a queue.
+- Motif Search
+    - For each backbone candidate:
+        - Schedule an AWS Lambda:
+            - Pop the backbone from the queue.
+            - Traverse all shortest paths in the motif starting at the nearest
+                of either M1 or M2
+            - If multiple nodes are valid candidates, queue a new backbone with
+                each option, and terminate the current Lambda.
+            - When all paths are valid paths in the host graph, add the list
+                of participant nodes to a result in the DynamoDB table.
+- Reporting
+    - Return a serialization of the results from the DynamoDB table.
+- Cleanup
+    - Delete the backbone queue
+    - Delete the results table (after collection)
+"""
+
+from typing import List
+import time
 import queue
+import numpy as np
 
-import boto3
+import networkx as nx
 
-from grand import Graph
+"""
+In this process, we consider the following operations to be fast:
 
-from uuid import uuid4
+- Get degree of node
+- Get downstream targets of node
+- Get attributes on a node
+
+These operations are medium:
+
+- Get upstream sources of node
+- Get degrees of all nodes in host graph
+- Get nodes with a certain attribute
+
+These operations are slow:
+- Get edges where nodes have a certain attribute
+    - But you can do the same with get-downstream-targets and filter an
+      attribute search.
+"""
 
 
-class _GrandIsoLimit:
+def is_node_attr_match(
+    motif_node_attrs: dict, host_graph_id: str, host: nx.Graph
+) -> bool:
     """
-    A limit supervisor that limits the execution of a GrandIso algorithm run.
+    Check if a node in the host graph matches the attributes in the motif.
 
-    """
+    Arguments:
+        motif_node_attrs (dict): A dictionary of metadata on a motif node
+        host_graph_id (str): The ID of metadata on the host graph
+        host (nx.Graph): The host graph object
 
-    def __init__(
-        self,
-        parent: "GrandIso",
-        lambda_count_limit: int,
-        wallclock_limit_seconds: float,
-    ) -> None:
-        """
-        Create a new GrandIso limit supervisor.
-
-        The `lambda_count_limit` is a TOTAL number of lambda functions to run
-        in the lifetime of the execution, NOT a concurrency limit.
-
-        The wallclock limit is the total number of seconds from initial run,
-        after which new lambdas will not be scheduled. A lambda that is running
-        when the clock times out will continue to run to completion, and will
-        not turn back into a pumpkin.
-
-        Arguments:
-            parent (GrandIso): The GrandIso algorithm pointer to monitor
-            lambda_count_limit (int): The maximum number of lambdas to run
-            wallclock_limit_seconds (float): The maximum number of run seconds
-
-        Returns:
-            None
-
-        """
-        self.parent = parent
-        self.lambda_count_limit = lambda_count_limit
-        self.wallclock_limit_seconds = wallclock_limit_seconds
-
-
-class _UnboundedGrandIsoLimit(_GrandIsoLimit):
-    def __init__(self, parent: "GrandIso"):
-        self.parent = parent
-        self.lambda_count_limit = None
-        self.wallclock_limit_seconds = None
-
-
-class GrandIsoQueue:
-    """
-    Abstract class for queue management in a Grand-Iso run.
+    Returns:
+        bool: True if the host node matches the attributes in the motif
 
     """
+    host_node = host.nodes[host_graph_id]
 
-    def __init__(self):
-        raise NotImplementedError()
+    for attr, val in motif_node_attrs.items():
+        if attr not in host_node:
+            return False
+        if host_node[attr] != val:
+            return False
 
-    def exists(self) -> bool:
-        """
-        Return True if this resource already exists.
-        """
-        return False
-
-    def provision(self, wait_for_completion: bool = True):
-        """
-        Provision this cloud resource.
-
-        Arguments:
-            wait_for_completion (bool: True): Whether to wait for this resource
-                to be provisioned successfully.
-
-        Returns:
-            None
-
-        """
-        raise NotImplementedError()
+    return True
 
 
-_DEFAULT_SQS_RESOURCE_URL = "http://localhost:4566"
-
-
-class SimplePythonQueueGrandIsoQueue(GrandIsoQueue):
+def is_node_structural_match(
+    motif_node_id: str, host_graph_id: str, motif: nx.Graph, host: nx.Graph
+) -> bool:
     """
-    Grand-Iso queue that uses a local Python queue object.
+    Check if the motif node here is a valid structural match.
+
+    Specifically, this requires that a host node has at least the degree as the
+    motif node.
+
+    Arguments:
+        motif_node_id (str): The motif node ID
+        host_graph_id (str): The host graph ID
+        motif (nx.Graph): The motif graph
+        host (nx.Graph): The host graph
+
+    Returns:
+        bool: True if the motif node maps to this host node
+
     """
-
-    def __init__(self, gi_instance: "GrandIso",) -> None:
-        """
-        Create a new Python-memory-backed queue.
-
-        Arguments:
-            resource_url (str: _DEFAULT_SQS_RESOURCE_URL): The URL for the SQS
-                resource that will be used (e.g. if you want to run locally).
-
-        Returns:
-            None
-
-        """
-        self._parent = gi_instance
-        self._queue = queue.SimpleQueue()
-
-    def queue_backbone(self, backbone):
-        """
-        Add a backbone graph to the queue.
-        """
-        self._queue.put(backbone)
-
-    def pop_backbone(self):
-        """
-        Get a backbone graph from the queue.
-        """
-        return self._queue.get()
+    return host.degree(host_graph_id) >= motif.degree(motif_node_id)
 
 
-class SQSGrandIsoQueue(GrandIsoQueue):
+def get_next_backbone_candidates(
+    backbone: dict,
+    motif: nx.Graph,
+    host: nx.Graph,
+    interestingness: dict,
+    next_node: str = None,
+    enforce_inequality: bool = True,
+) -> List[dict]:
     """
-    Grand-Iso queue that uses AWS SQS.
+    Get a list of candidate node assignments for the next "step" of this map.
+
+    Arguments:
+        backbone (dict): Mapping of motif node IDs to one set of host graph IDs
+        motif (Graph): A graph representation of the motif
+        host (Graph): The host graph, complete
+        interestingness (dict): A mapping of motif node IDs to interestingness
+        next_node (str: None): Optional suggestion for the next node to assign
+        enforce_inequality (bool: True): If true, two nodes in backbone cannot
+            be assigned to the same host-graph
+
+    Returns:
+        List[dict]: A new list of mappings with one additional element mapped
+
     """
 
-    def __init__(
-        self,
-        gi_instance: "GrandIso",
-        resource_url: str = _DEFAULT_SQS_RESOURCE_URL,
-        aws_access_key_id: str = "",
-        aws_secret_access_key: str = "",
-    ) -> None:
-        """
-        Create a new SQS-backed queue.
+    # Get a list of the "exploration front" of the motif -- nodes that are not
+    # yet assigned in the backbone but are connected to at least one assigned
+    # node in the backbone.
 
-        Arguments:
-            resource_url (str: _DEFAULT_SQS_RESOURCE_URL): The URL for the SQS
-                resource that will be used (e.g. if you want to run locally).
+    # For example, in the motif A -> B -> C, if A is already assigned, then the
+    # front is [B] (c is not included because it has not connection to any
+    # assigned node).
 
-        Returns:
-            None
+    # We should prefer nodes that are connected to multiple assigned backbone
+    # nodes, because these will filter more rapidly to a smaller set.
 
-        """
-        self._parent = gi_instance
-        self._resource_url = resource_url
-        self._sqs_client = boto3.resource(
-            "sqs",
-            endpoint_url=resource_url,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
+    # First check if the backbone is empty. If so, we should choose the most
+    # interesting node to start with:
+
+    if next_node is None and len(backbone) == 0:
+        # This is the starting-case, where we have NO backbone nodes set yet.
+        next_node = [k for k in interestingness.keys()][0]
+        # Let's return ALL possible node choices for this next_node. To do this
+        # without being an insane person, let's filter on max degree in host:
+        return [
+            {next_node: n}
+            for n in host.nodes()
+            if is_node_structural_match(next_node, n, motif, host)
+        ]
+
+    else:
+        _node_with_greatest_backbone_count = None
+        _greatest_backbone_count = 0
+        for motif_node_id in motif.nodes():
+            if motif_node_id in backbone:
+                continue
+            # How many connections to existing backbone?
+            # Note that this number is certainly greater than or equal to 1,
+            # since a value of 0 would imply that the backbone dict is empty
+            # (which we have already handled) or that the motif has more than
+            # one connected component, which we check for at prep-time.
+            motif_backbone_connections_count = sum(
+                [
+                    1
+                    for v in list(
+                        set(motif.adj[motif_node_id]).union(
+                            set(motif.pred[motif_node_id])
+                        )
+                    )
+                    if v in backbone
+                ]
+            )
+            # If this is the most highly connected node visited so far, then
+            # set it as the next node to explore:
+            if motif_backbone_connections_count > _greatest_backbone_count:
+                _node_with_greatest_backbone_count = motif_node_id
+        # Now we have _node_with_greatest_backbone_count as the best candidate
+        # for `next_node`.
+        next_node = _node_with_greatest_backbone_count
+
+    # Now we have a node `next_node` which we know is connected to the current
+    # backbone. Get all edges between `next_node` and nodes in the backbone,
+    # and verify that they exist in the host graph:
+    # `required_edges` has the form (prev, self, next), with non-values filled
+    # with None. That way we can easily remember and store the roles of the
+    # node IDs in the next step.
+    required_edges = []
+    for other in list(motif.adj[next_node]):
+        if other in backbone:
+            # edge is (next_node, other)
+            required_edges.append((None, next_node, other))
+    for other in list(motif.pred[next_node]):
+        if other in backbone:
+            # edge is (other, next_node)
+            required_edges.append((other, next_node, None))
+
+    # `required_edges` now contains a list of all edges that exist in the motif
+    # graph, and we must find candidate nodes that have such edges in the host.
+
+    candidate_nodes = []
+
+    # In the worst-case, `required_edges` has length == 1. This is the worst
+    # case because it means that ALL edges from/to `other` are valid options.
+    if len(required_edges) == 1:
+        # :(
+        (source, _, target) = required_edges[0]
+        if source:
+            # this is a "from" edge:
+            candidate_nodes = list(host.adj[backbone[source]])
+        elif target:
+            # this is a "from" edge:
+            candidate_nodes = list(host.pred[backbone[target]])
+        # Thus, all candidates for motif ID `$next_node` are stored in the
+        # candidate_nodes list.
+
+    elif len(required_edges) > 1:
+        # This is neato :) It means that there are multiple edges in the host
+        # graph that we can use to downselect the number of candidate nodes.
+        candidate_nodes_set = set()
+        for (source, _, target) in required_edges:
+            if source:
+                # this is a "from" edge:
+                candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
+            elif target:
+                # this is a "from" edge:
+                candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
+
+            if len(candidate_nodes_set) == 0:
+                # This is the first edge we're checking, so set the candidate
+                # nodes set to ALL possible candidates.
+                candidate_nodes_set.update(candidate_nodes_from_this_edge)
+            else:
+                candidate_nodes_set = candidate_nodes_set.intersection(
+                    candidate_nodes_from_this_edge
+                )
+        candidate_nodes = list(candidate_nodes_set)
+
+    elif len(required_edges) == 0:
+        # Somehow you found a node that doesn't have any edges. This is bad.
+        raise ValueError(
+            f"Somehow you found a motif node {next_node} that doesn't have "
+            + "any motif-graph edges. This is bad. (Did you maybe pass an "
+            + "empty backbone to this function?)"
         )
 
-    def queue_backbone(self, backbone):
-        """
-        Add a backbone graph to the queue.
-        """
-        raise NotImplementedError()
-
-    def pop_backbone(self):
-        """
-        Get a backbone graph from the queue.
-        """
-        raise NotImplementedError()
+    return [
+        {**backbone, next_node: c}
+        for c in candidate_nodes
+        if c not in backbone.values()
+    ]
 
 
-class GrandIsoFunction:
-    def __init__(self):
-        raise NotImplementedError()
-
-    def exists(self) -> bool:
-        """
-        Return True if this resource already exists.
-        """
-        return False
-
-    def provision(self, wait_for_completion: bool = True):
-        """
-        Provision this cloud resource.
-
-        Arguments:
-            wait_for_completion (bool: True): Whether to wait for this resource
-                to be provisioned successfully.
-
-        Returns:
-            None
-
-        """
-        raise NotImplementedError()
-
-
-class GrandIsoResultsTable:
-    def __init__(self):
-        raise NotImplementedError()
-
-    def exists(self) -> bool:
-        """
-        Return True if this resource already exists.
-        """
-        return False
-
-    def provision(self, wait_for_completion: bool = True):
-        """
-        Provision this cloud resource.
-
-        Arguments:
-            wait_for_completion (bool: True): Whether to wait for this resource
-                to be provisioned successfully.
-
-        Returns:
-            None
-
-        """
-        raise NotImplementedError()
-
-
-class GrandIso:
+def sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict:
     """
-    A high-level class for managing cloud-scale subgraph isomorphism using the
-    novel grand-iso backbone algorithm.
+    Sort the nodes in a motif by their interestingness.
 
-    Pseudocode:
+    Most interesting nodes are defined to be those that most rapidly filter the
+    list of nodes down to a smaller set.
 
-        - Provision a DynamoDB table for result storage.
-        - Preprocessing
-            - Identify highest-degree node in motif, M1
-            - Identify second-highest degree node in motif, M2, connected to M1 by
-                a single edge.
-            - Identify all nodes with degree of M1 or greater in the host graph,
-                which also have all required attributes of the M1 and M2 nodes. If
-                neither M1 nor M2 have degree > 1 nor attributes, select M1 and M2 as
-                two nodes with attributes defined.
-            - Enumerate all paths in the host graph from M1 candidates to M2 candidates,
-                as candidate "backbones" in AWS SQS.
-        - Motif Search
-            - For each backbone candidate:
-                - Schedule an AWS Lambda:
-                    - Pop the backbone from the queue.
-                    - Traverse all shortest paths in the motif starting at the nearest
-                        of either M1 or M2
-                    - If multiple nodes are valid candidates, queue a new backbone with
-                        each option, and terminate the current Lambda.
-                    - When all paths are valid paths in the host graph, add the list
-                        of participant nodes to a result in the DynamoDB table.
-        - Reporting
-            - Return a serialization of the results from the DynamoDB table.
-        - Cleanup
-            - Delete the backbone queue
-            - Delete the results table (after collection)
+    """
+    Warning("Bad implementation for sort_motif_nodes_by_interestingness")
+    return {n: 1 for n in motif.nodes()}
+
+
+def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
+    """
+    Get a list of mappings from motif node IDs to host graph IDs.
+
+    Results are of the form:
+
+    ```
+    [{motif_id: host_id, ...}]
+    ```
+
+    Arguments:
+        motif (nx.DiGraph): The motif graph (needle) to search for
+        host (nx.DiGraph): The host graph (haystack) to search within
+
+    Returns:
+        List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
 
-    def __init__(
-        self,
-        graph: Optional[Union[grand.Graph]] = None,
-        exact_match: bool = False,
-        limits: _GrandIsoLimit = None,
-        **kwargs
-    ):
-        """
-        Initialize a new GrandIso management instance.
+    interestingness = sort_motif_nodes_by_interestingness(motif)
 
-        Arguments:
-            exact_match (bool: False): Whether to allow edges in the host graph
-                that were not explicitly specified in the motif
+    q = queue.SimpleQueue()
+    results = []
 
-        """
-        # Whether to allow edges in the host graph that were not explicitly
-        # specified in the motif
-        self._exact_match = exact_match
+    q.put({})
 
-        # Attach a limit handler to prevent runaway jobs. By default, there is
-        # no limit (¡CUIDADO!)
-        self._limits = limits if limits else _UnboundedGrandIsoLimit(self)
+    while q.qsize():
+        new_backbone = q.get()
+        next_candidate_backbones = get_next_backbone_candidates(
+            new_backbone, motif, host, interestingness
+        )
 
-        # Assign a unique identifier to this instance so that all resources
-        # (such as db tables, queues, lambdas) run in isolation from other
-        # Grand-Iso runs.
-        self._instance_id = str(uuid4())
+        for candidate in next_candidate_backbones:
+            if len(candidate) == len(motif):
+                results.append(candidate)
+            else:
+                q.put(candidate)
 
-        # Save a pointer to the graph. If the graph is not set, then proceed
-        # as usual but do not let the user run an execution until it is set.
-        self._graph = graph
-        self._graph_specified = True if self._graph else False
-
-    @property
-    def instance_id(self):
-        """
-        Get the unique instance ID for this run-instance of Grand-Iso.
-
-        """
-        return self._instance_id
-
-    def is_ready(self) -> bool:
-        """
-        Returns True if the instance is ready to begin execution.
-        """
-        return self._graph_specified
-
-    def set_graph(self, graph: grand.Graph):
-        """
-        Set a pointer to the dynamo-backed grand Graph object.
-
-        Arguments:
-            graph (grand.Graph): The graph to use (must be dynamo-backed)
-
-        Returns:
-            None
-
-        """
-        self._graph = graph
-        self._graph_specified = True
-
-    def _provision_queue(self):
-        """
-        Provision the SQS for this run.
-
-        """
-        raise NotImplementedError()
-
-    def _provision_backbone_lambda(self):
-        """
-        Provision a new lambda function to run each backbone check.
-
-        """
-        raise NotImplementedError()
-
-    def _provision_results_table(self):
-        """
-        Provision a new DynamoDB table to hold the results of this run.
-
-        """
-        raise NotImplementedError()
-
-    def provision_resources(self, wait: bool = True):
-        """
-        Provision all cloud resources that will be required for this run.
-
-        Arguments:
-            wait (bool: True): Whether to wait for all resources before
-                returning from this call. If False, the user must await the
-                creation of resources manually.
-
-        Returns:
-            Tuple[any, any, any]: A tuple containing the provisioned resources
-
-        """
-        queue = self._provision_queue()
-        function = self._provision_backbone_lambda()
-        table = self._provision_results_table()
-
-        if wait:
-            raise NotImplementedError()
-
-        return (queue, function, table)
-
-    def destroy(self):
-        """
-        Destroy this instance, force-terminating any running tasks.
-
-        Destroys and terminates all cloud resources associated with this
-        instance, so exercise proper caution.
-
-        This function is best reserved for when a run appears to have gone
-        astray and is running for too long.
-
-        """
-        raise NotImplementedError()
-
-    @property
-    def limits(self):
-        return self._limits
+    return results

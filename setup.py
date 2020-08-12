@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="grand-iso",
+    name="grandiso",
     version="0.1.0",
     author="Jordan Matelsky",
     author_email="opensource@matelsky.com",
     description="Subgraph isomorphism at cloud-scale",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/j6k4m8/grand-iso",
+    url="https://github.com/aplbrain/grandiso-networkx",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
