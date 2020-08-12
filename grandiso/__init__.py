@@ -29,7 +29,10 @@
 
 from typing import List
 import time
+
 import queue
+import multiprocessing
+
 import numpy as np
 
 import networkx as nx
@@ -284,7 +287,6 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
-
     interestingness = sort_motif_nodes_by_interestingness(motif)
 
     q = queue.SimpleQueue()
@@ -292,7 +294,7 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
 
     q.put({})
 
-    while q.qsize():
+    while not q.empty():
         new_backbone = q.get()
         next_candidate_backbones = get_next_backbone_candidates(
             new_backbone, motif, host, interestingness
