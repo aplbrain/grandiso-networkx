@@ -1,4 +1,7 @@
 from typing import Union, Optional
+import queue
+
+import boto3
 
 from grand import Graph
 
@@ -79,7 +82,40 @@ class GrandIsoQueue:
         raise NotImplementedError()
 
 
-_DEFAULT_SQS_RESOURCE_URL = "http://localhost:8080"
+_DEFAULT_SQS_RESOURCE_URL = "http://localhost:4566"
+
+
+class SimplePythonQueueGrandIsoQueue(GrandIsoQueue):
+    """
+    Grand-Iso queue that uses a local Python queue object.
+    """
+
+    def __init__(self, gi_instance: "GrandIso",) -> None:
+        """
+        Create a new Python-memory-backed queue.
+
+        Arguments:
+            resource_url (str: _DEFAULT_SQS_RESOURCE_URL): The URL for the SQS
+                resource that will be used (e.g. if you want to run locally).
+
+        Returns:
+            None
+
+        """
+        self._parent = gi_instance
+        self._queue = queue.SimpleQueue()
+
+    def queue_backbone(self, backbone):
+        """
+        Add a backbone graph to the queue.
+        """
+        self._queue.put(backbone)
+
+    def pop_backbone(self):
+        """
+        Get a backbone graph from the queue.
+        """
+        return self._queue.get()
 
 
 class SQSGrandIsoQueue(GrandIsoQueue):
@@ -87,7 +123,13 @@ class SQSGrandIsoQueue(GrandIsoQueue):
     Grand-Iso queue that uses AWS SQS.
     """
 
-    def __init__(self, resource_url: str = _DEFAULT_SQS_RESOURCE_URL) -> None:
+    def __init__(
+        self,
+        gi_instance: "GrandIso",
+        resource_url: str = _DEFAULT_SQS_RESOURCE_URL,
+        aws_access_key_id: str = "",
+        aws_secret_access_key: str = "",
+    ) -> None:
         """
         Create a new SQS-backed queue.
 
@@ -99,7 +141,26 @@ class SQSGrandIsoQueue(GrandIsoQueue):
             None
 
         """
+        self._parent = gi_instance
         self._resource_url = resource_url
+        self._sqs_client = boto3.resource(
+            "sqs",
+            endpoint_url=resource_url,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+        )
+
+    def queue_backbone(self, backbone):
+        """
+        Add a backbone graph to the queue.
+        """
+        raise NotImplementedError()
+
+    def pop_backbone(self):
+        """
+        Get a backbone graph from the queue.
+        """
+        raise NotImplementedError()
 
 
 class GrandIsoFunction:
