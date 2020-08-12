@@ -111,6 +111,7 @@ def get_next_backbone_candidates(
     host: nx.Graph,
     interestingness: dict,
     next_node: str = None,
+    directed: bool = True,
     enforce_inequality: bool = True,
 ) -> List[dict]:
     """
@@ -122,6 +123,7 @@ def get_next_backbone_candidates(
         host (Graph): The host graph, complete
         interestingness (dict): A mapping of motif node IDs to interestingness
         next_node (str: None): Optional suggestion for the next node to assign
+        directed (bool: True): Whether host and motif are both directed
         enforce_inequality (bool: True): If true, two nodes in backbone cannot
             be assigned to the same host-graph
 
@@ -166,17 +168,22 @@ def get_next_backbone_candidates(
             # since a value of 0 would imply that the backbone dict is empty
             # (which we have already handled) or that the motif has more than
             # one connected component, which we check for at prep-time.
-            motif_backbone_connections_count = sum(
-                [
-                    1
-                    for v in list(
-                        set(motif.adj[motif_node_id]).union(
-                            set(motif.pred[motif_node_id])
+            if directed:
+                motif_backbone_connections_count = sum(
+                    [
+                        1
+                        for v in list(
+                            set(motif.adj[motif_node_id]).union(
+                                set(motif.pred[motif_node_id])
+                            )
                         )
-                    )
-                    if v in backbone
-                ]
-            )
+                        if v in backbone
+                    ]
+                )
+            else:
+                motif_backbone_connections_count = sum(
+                    [1 for v in motif.adj[motif_node_id] if v in backbone]
+                )
             # If this is the most highly connected node visited so far, then
             # set it as the next node to explore:
             if motif_backbone_connections_count > _greatest_backbone_count:
@@ -196,10 +203,11 @@ def get_next_backbone_candidates(
         if other in backbone:
             # edge is (next_node, other)
             required_edges.append((None, next_node, other))
-    for other in list(motif.pred[next_node]):
-        if other in backbone:
-            # edge is (other, next_node)
-            required_edges.append((other, next_node, None))
+    if directed:
+        for other in list(motif.pred[next_node]):
+            if other in backbone:
+                # edge is (other, next_node)
+                required_edges.append((other, next_node, None))
 
     # `required_edges` now contains a list of all edges that exist in the motif
     # graph, and we must find candidate nodes that have such edges in the host.
@@ -211,12 +219,15 @@ def get_next_backbone_candidates(
     if len(required_edges) == 1:
         # :(
         (source, _, target) = required_edges[0]
-        if source:
-            # this is a "from" edge:
-            candidate_nodes = list(host.adj[backbone[source]])
-        elif target:
-            # this is a "from" edge:
-            candidate_nodes = list(host.pred[backbone[target]])
+        if directed:
+            if source:
+                # this is a "from" edge:
+                candidate_nodes = list(host.adj[backbone[source]])
+            elif target:
+                # this is a "from" edge:
+                candidate_nodes = list(host.pred[backbone[target]])
+        else:
+            candidate_nodes = list(host.adj[backbone[target]])
         # Thus, all candidates for motif ID `$next_node` are stored in the
         # candidate_nodes list.
 
@@ -225,13 +236,15 @@ def get_next_backbone_candidates(
         # graph that we can use to downselect the number of candidate nodes.
         candidate_nodes_set = set()
         for (source, _, target) in required_edges:
-            if source:
-                # this is a "from" edge:
-                candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
-            elif target:
-                # this is a "from" edge:
-                candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
-
+            if directed:
+                if source:
+                    # this is a "from" edge:
+                    candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
+                elif target:
+                    # this is a "from" edge:
+                    candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
+            else:
+                candidate_nodes_from_this_edge = list(host.adj[backbone[target]])
             if len(candidate_nodes_set) == 0:
                 # This is the first edge we're checking, so set the candidate
                 # nodes set to ALL possible candidates.
@@ -289,6 +302,12 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
     """
     interestingness = sort_motif_nodes_by_interestingness(motif)
 
+    if isinstance(motif, nx.DiGraph) and isinstance(host, nx.DiGraph):
+        # This will be a directed query.
+        directed = True
+    else:
+        directed = False
+
     q = queue.SimpleQueue()
     results = []
 
@@ -297,7 +316,7 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
     while not q.empty():
         new_backbone = q.get()
         next_candidate_backbones = get_next_backbone_candidates(
-            new_backbone, motif, host, interestingness
+            new_backbone, motif, host, interestingness, directed=directed
         )
 
         for candidate in next_candidate_backbones:
