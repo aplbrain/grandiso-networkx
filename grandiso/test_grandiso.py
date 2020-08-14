@@ -1,9 +1,11 @@
+import time
+import copy
 import unittest
 
 import networkx as nx
 from networkx.algorithms.isomorphism import DiGraphMatcher, GraphMatcher
 
-from . import find_motifs
+from . import find_motifs, find_motifs_parallel
 
 
 class TestSubgraphMatching(unittest.TestCase):
@@ -212,3 +214,37 @@ class TestUndirectedSubgraphMatching(unittest.TestCase):
             len(find_motifs(motif, host)),
             len([i for i in GraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
         )
+
+
+class TestParallel(unittest.TestCase):
+    def test_parallel(self):
+
+        motif = nx.Graph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "A")
+
+        host = nx.Graph()
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+
+        self.assertEqual(len(find_motifs_parallel(motif, host)), 6)
+
+    def test_big_parallel(self):
+
+        host = nx.fast_gnp_random_graph(200, 0.6, directed=False)
+        motif = nx.Graph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "A")
+        tic = time.time()
+        r = find_motifs_parallel(motif, host)
+        toc = time.time() - tic
+
+        tic = time.time()
+        r2 = find_motifs(motif, host)
+
+        print(len(r), len(r2))
+
+        self.assertGreater(time.time() - tic, toc)

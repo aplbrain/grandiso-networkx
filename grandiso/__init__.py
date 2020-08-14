@@ -26,12 +26,13 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
+import persistqueue
 
 from typing import List
 import time
 
 import queue
-import multiprocessing
+import threading
 
 import numpy as np
 
@@ -324,5 +325,78 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
                 results.append(candidate)
             else:
                 q.put(candidate)
+
+    return results
+
+
+_DEFAULT_QUEUE_FILEPATH = "/tmp/grand-iso-queue"
+
+
+def find_motifs_parallel(
+    motif: nx.DiGraph,
+    host: nx.DiGraph,
+    thread_count: int = 8,
+    queue_filepath: str = _DEFAULT_QUEUE_FILEPATH,
+) -> List[dict]:
+    """
+    Get a list of mappings from motif node IDs to host graph IDs.
+
+    Results are of the form:
+
+    ```
+    [{motif_id: host_id, ...}]
+    ```
+
+    Arguments:
+        motif (nx.DiGraph): The motif graph (needle) to search for
+        host (nx.DiGraph): The host graph (haystack) to search within
+        thread_count (int: 8): The number of threads to run in parallel
+        queue_filepath (str: _DEFAULT_QUEUE_FILEPATH): The name of the file
+            to use as a persisted queue
+
+    Returns:
+        List[dict]: A list of mappings from motif node IDs to host graph IDs
+
+    """
+    q = persistqueue.Queue(queue_filepath)
+
+    interestingness = sort_motif_nodes_by_interestingness(motif)
+    if isinstance(motif, nx.DiGraph) and isinstance(host, nx.DiGraph):
+        # This will be a directed query.
+        directed = True
+    else:
+        directed = False
+
+    results = []
+
+    def worker():
+        while True:
+            new_backbone = q.get()
+            next_candidate_backbones = get_next_backbone_candidates(
+                new_backbone, motif, host, interestingness, directed=directed
+            )
+
+            for candidate in next_candidate_backbones:
+                if len(candidate) == len(motif):
+                    results.append(candidate)
+                else:
+                    q.put(candidate)
+            q.task_done()
+            if q.qsize() == 0:
+                break
+
+    try:
+        for _ in range(thread_count):
+            t = threading.Thread(target=worker)
+            t.daemon = True
+            t.start()
+
+        q.put({})
+
+        # block until all tasks are done
+        q.join()
+    except Exception as e:
+        del q
+        raise e
 
     return results
