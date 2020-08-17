@@ -233,7 +233,7 @@ class TestParallel(unittest.TestCase):
 
     def test_big_parallel(self):
 
-        host = nx.fast_gnp_random_graph(200, 0.6, directed=False)
+        host = nx.fast_gnp_random_graph(150, 0.2, directed=False)
         motif = nx.Graph()
         motif.add_edge("A", "B")
         motif.add_edge("B", "C")
