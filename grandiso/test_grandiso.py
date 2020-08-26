@@ -240,7 +240,7 @@ class TestParallel(unittest.TestCase):
         motif.add_edge("C", "D")
         motif.add_edge("D", "A")
 
-        host = nx.fast_gnp_random_graph(400, 0.05, directed=False)
+        host = nx.fast_gnp_random_graph(200, 0.02, directed=False)
 
         tic = time.time()
         result_count_singlethread = len(find_motifs(motif, host))
@@ -249,27 +249,27 @@ class TestParallel(unittest.TestCase):
         result_count_parallel = len(find_motifs_parallel(motif, host))
         toc_parallel = time.time() - tic
         self.assertEqual(result_count_singlethread, result_count_parallel)
-        # self.assertGreater(toc_singlethread, toc_parallel)
+        self.assertGreater(toc_singlethread, toc_parallel)
 
 
-class TestParallelFile(unittest.TestCase):
-    def test_parallel(self):
-        motif = nx.Graph()
-        motif.add_edge("A", "B")
-        motif.add_edge("B", "C")
-        motif.add_edge("C", "A")
-        motif.add_edge("C", "D")
-        motif.add_edge("D", "A")
+# class TestParallelFile(unittest.TestCase):
+#     def test_parallel(self):
+#         motif = nx.Graph()
+#         motif.add_edge("A", "B")
+#         motif.add_edge("B", "C")
+#         motif.add_edge("C", "A")
+#         motif.add_edge("C", "D")
+#         motif.add_edge("D", "A")
 
-        host = nx.fast_gnp_random_graph(40, 0.05, directed=False)
+#         host = nx.fast_gnp_random_graph(40, 0.05, directed=False)
 
-        tic = time.time()
-        result_count_singlethread = len(find_motifs(motif, host))
-        toc_singlethread = time.time() - tic
-        tic = time.time()
-        result_count_parallel = len(
-            find_motifs_parallel(motif, host, queue_on_disk=True)
-        )
-        toc_parallel = time.time() - tic
-        self.assertEqual(result_count_singlethread, result_count_parallel)
-        # self.assertGreater(toc_singlethread, toc_parallel)
+#         tic = time.time()
+#         result_count_singlethread = len(find_motifs(motif, host))
+#         toc_singlethread = time.time() - tic
+#         tic = time.time()
+#         result_count_parallel = len(
+#             find_motifs_parallel(motif, host, queue_on_disk=True)
+#         )
+#         toc_parallel = time.time() - tic
+#         self.assertEqual(result_count_singlethread, result_count_parallel)
+#         # self.assertGreater(toc_singlethread, toc_parallel)
