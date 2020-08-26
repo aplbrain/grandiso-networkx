@@ -29,11 +29,12 @@
 import persistqueue
 import concurrent.futures
 
-from typing import List
 import time
+from typing import List, Union
 
 import queue
 import threading
+import multiprocessing
 
 import numpy as np
 
@@ -272,7 +273,7 @@ def get_next_backbone_candidates(
     ]
 
 
-def sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict:
+def uniform_node_interestingness(motif: nx.Graph) -> dict:
     """
     Sort the nodes in a motif by their interestingness.
 
@@ -280,11 +281,12 @@ def sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict:
     list of nodes down to a smaller set.
 
     """
-    Warning("Bad implementation for sort_motif_nodes_by_interestingness")
     return {n: 1 for n in motif.nodes()}
 
 
-def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
+def find_motifs(
+    motif: nx.DiGraph, host: nx.DiGraph, interestingness: dict = None
+) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
 
@@ -302,7 +304,7 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
-    interestingness = sort_motif_nodes_by_interestingness(motif)
+    interestingness = interestingness or uniform_node_interestingness(motif)
 
     if isinstance(motif, nx.DiGraph):
         # This will be a directed query.
@@ -313,6 +315,7 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
     q = queue.SimpleQueue()
     results = []
 
+    # Kick off the queue with an empty candidate:
     q.put({})
 
     while not q.empty():
@@ -330,92 +333,16 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
     return results
 
 
-def _worker(new_backbone, motif, host, interestingness, directed):
-    next_candidate_backbones = get_next_backbone_candidates(
-        new_backbone, motif, host, interestingness, directed=directed
-    )
-
-    return [
-        ((candidate, None) if len(candidate) == len(motif) else (None, candidate))
-        for candidate in next_candidate_backbones
-    ]
-
-
-def find_motifs_parallel(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
-    """
-    Get a list of mappings from motif node IDs to host graph IDs.
-
-    Results are of the form:
-
-    ```
-    [{motif_id: host_id, ...}]
-    ```
-
-    Arguments:
-        motif (nx.DiGraph): The motif graph (needle) to search for
-        host (nx.DiGraph): The host graph (haystack) to search within
-
-    Returns:
-        List[dict]: A list of mappings from motif node IDs to host graph IDs
-
-    """
-    interestingness = sort_motif_nodes_by_interestingness(motif)
-
-    if isinstance(motif, nx.DiGraph):
-        # This will be a directed query.
-        directed = True
-    else:
-        directed = False
-
-    results = []
-    with concurrent.futures.ProcessPoolExecutor(max_workers=16) as executor:
-        results = []
-        futures = []
-        futures.append(
-            executor.submit(_worker, {}, motif, host, interestingness, directed)
-        )
-
-        while True:
-            next_futures = []
-            for f in concurrent.futures.as_completed(futures):
-                next_candidate_backbones = f.result()
-
-                for (result, backbone) in next_candidate_backbones:
-                    if result:
-                        results.append(result)
-                    elif backbone:
-                        next_futures.append(
-                            executor.submit(
-                                _worker,
-                                backbone,
-                                motif,
-                                host,
-                                interestingness,
-                                directed,
-                            )
-                        )
-            futures = next_futures
-            if len(futures) == 0:
-                break
-
-    return results
-
-
-"""
-q.put() →submit to executor
-poll futures for .complete
-when complete, send results to results-list and queue next backbones
-
-"""
-
 _DEFAULT_QUEUE_FILEPATH = "/tmp/grand-iso-queue"
 
 
-def find_motifs_parallel_file_queue(
+def find_motifs_parallel(
     motif: nx.DiGraph,
     host: nx.DiGraph,
+    interestingness: dict = None,
     thread_count: int = 8,
-    queue_filepath: str = _DEFAULT_QUEUE_FILEPATH,
+    queue_on_disk: Union[bool, str] = False,
+    queue_on_disk_filepath: str = _DEFAULT_QUEUE_FILEPATH,
 ) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -437,9 +364,12 @@ def find_motifs_parallel_file_queue(
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
-    q = persistqueue.Queue(queue_filepath)
+    if queue_on_disk:
+        q = persistqueue.Queue(queue_on_disk_filepath)
+    else:
+        q = multiprocessing.JoinableQueue()
 
-    interestingness = sort_motif_nodes_by_interestingness(motif)
+    interestingness = interestingness or uniform_node_interestingness(motif)
     if isinstance(motif, nx.DiGraph):
         # This will be a directed query.
         directed = True
@@ -454,28 +384,25 @@ def find_motifs_parallel_file_queue(
             next_candidate_backbones = get_next_backbone_candidates(
                 new_backbone, motif, host, interestingness, directed=directed
             )
+            q.task_done()
 
             for candidate in next_candidate_backbones:
                 if len(candidate) == len(motif):
                     results.append(candidate)
                 else:
                     q.put(candidate)
-            q.task_done()
-            if q.qsize() == 0:
+            if q.empty():
                 break
 
-    try:
-        for _ in range(thread_count):
-            t = threading.Thread(target=worker)
-            t.daemon = True
-            t.start()
+    q.put({})
 
-        q.put({})
+    for _ in range(thread_count):
+        # t = multiprocessing.Process(target=worker) # ????
+        t = threading.Thread(target=worker)
+        t.daemon = True
+        t.start()
 
-        # block until all tasks are done
-        q.join()
-    except Exception as e:
-        del q
-        raise e
+    # block until all tasks are done
+    q.join()
 
     return results
