@@ -2,7 +2,7 @@
 
 Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm that is hugely impactful for large graph analysis. SotA algorithms for this (Ullmann, VF2, BB-Graph) are heavily RAM-bound, but this is due to a large number of small processes each of which hold a small portion of a traversal tree in memory.
 
-_Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable (albeit much much longer) partial-match queue structure.
+_Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable partial-match queue structure.
 
 ## Pseudocode for novel "Grand-Iso" algorithm
 
