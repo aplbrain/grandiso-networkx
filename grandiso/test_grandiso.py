@@ -240,7 +240,7 @@ class TestParallel(unittest.TestCase):
         motif.add_edge("C", "D")
         motif.add_edge("D", "A")
 
-        host = nx.fast_gnp_random_graph(200, 0.02, directed=False)
+        host = nx.fast_gnp_random_graph(3500, 0.003, directed=False)
 
         tic = time.time()
         result_count_singlethread = len(find_motifs(motif, host))

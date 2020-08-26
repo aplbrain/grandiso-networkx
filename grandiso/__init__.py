@@ -369,6 +369,8 @@ def find_motifs_parallel(
     else:
         q = multiprocessing.JoinableQueue()
 
+    results = multiprocessing.Queue()
+
     interestingness = interestingness or uniform_node_interestingness(motif)
     if isinstance(motif, nx.DiGraph):
         # This will be a directed query.
@@ -376,33 +378,35 @@ def find_motifs_parallel(
     else:
         directed = False
 
-    results = []
-
     def worker():
         while True:
             new_backbone = q.get()
             next_candidate_backbones = get_next_backbone_candidates(
                 new_backbone, motif, host, interestingness, directed=directed
             )
-            q.task_done()
 
             for candidate in next_candidate_backbones:
                 if len(candidate) == len(motif):
-                    results.append(candidate)
+                    results.put(candidate, True)
                 else:
                     q.put(candidate)
             if q.empty():
+                q.task_done()
                 break
+            q.task_done()
 
     q.put({})
 
     for _ in range(thread_count):
-        # t = multiprocessing.Process(target=worker) # ????
-        t = threading.Thread(target=worker)
+        t = multiprocessing.Process(target=worker)
         t.daemon = True
         t.start()
 
     # block until all tasks are done
     q.join()
 
-    return results
+    results_list = []
+    while not results.empty():
+        results_list.append(results.get())
+    return results_list
+
