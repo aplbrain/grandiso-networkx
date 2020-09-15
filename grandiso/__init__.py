@@ -26,19 +26,19 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
-import persistqueue
-import concurrent.futures
-
-import time
 from typing import List, Union
 
-import queue
+from functools import partial
+from multiprocessing import Process, Pool
 import threading
-import multiprocessing
+import time
+import queue
 
 import numpy as np
-
 import networkx as nx
+import zmq
+
+# import persistqueue
 
 """
 In this process, we consider the following operations to be fast:
@@ -340,9 +340,7 @@ def find_motifs_parallel(
     motif: nx.DiGraph,
     host: nx.DiGraph,
     interestingness: dict = None,
-    thread_count: int = 8,
-    queue_on_disk: Union[bool, str] = False,
-    queue_on_disk_filepath: str = _DEFAULT_QUEUE_FILEPATH,
+    n_workers: int = 8,
 ) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -356,57 +354,43 @@ def find_motifs_parallel(
     Arguments:
         motif (nx.DiGraph): The motif graph (needle) to search for
         host (nx.DiGraph): The host graph (haystack) to search within
-        thread_count (int: 8): The number of threads to run in parallel
-        queue_filepath (str: _DEFAULT_QUEUE_FILEPATH): The name of the file
-            to use as a persisted queue
 
     Returns:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
-    if queue_on_disk:
-        q = persistqueue.Queue(queue_on_disk_filepath)
-    else:
-        q = multiprocessing.JoinableQueue()
-
-    results = multiprocessing.Queue()
-
     interestingness = interestingness or uniform_node_interestingness(motif)
+
     if isinstance(motif, nx.DiGraph):
         # This will be a directed query.
         directed = True
     else:
         directed = False
 
-    def worker():
-        while True:
-            new_backbone = q.get()
-            next_candidate_backbones = get_next_backbone_candidates(
-                new_backbone, motif, host, interestingness, directed=directed
-            )
+    futures = []
+    results = []
 
-            for candidate in next_candidate_backbones:
-                if len(candidate) == len(motif):
-                    results.put(candidate, True)
-                else:
-                    q.put(candidate)
-            if q.empty():
-                q.task_done()
-                break
-            q.task_done()
+    # Kick off the queue with an empty candidate:
+    # q.put({})
 
-    q.put({})
+    ctx = zmq.Context.instance()
+    # Master - push/pull
+    # Worker - pull/push
 
-    for _ in range(thread_count):
-        t = multiprocessing.Process(target=worker)
-        t.daemon = True
-        t.start()
+    push
 
-    # block until all tasks are done
-    q.join()
+    """
+    while not q.empty():
+        new_backbone = q.get()
+        next_candidate_backbones = get_next_backbone_candidates(
+            new_backbone, motif, host, interestingness, directed=directed
+        )
 
-    results_list = []
-    while not results.empty():
-        results_list.append(results.get())
-    return results_list
+        for candidate in next_candidate_backbones:
+            if len(candidate) == len(motif):
+                results.append(candidate)
+            else:
+                q.put(candidate)
+    """
 
+    return results
