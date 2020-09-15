@@ -36,7 +36,6 @@ import queue
 
 import numpy as np
 import networkx as nx
-import zmq
 
 # import persistqueue
 
@@ -329,68 +328,5 @@ def find_motifs(
                 results.append(candidate)
             else:
                 q.put(candidate)
-
-    return results
-
-
-_DEFAULT_QUEUE_FILEPATH = "/tmp/grand-iso-queue"
-
-
-def find_motifs_parallel(
-    motif: nx.DiGraph,
-    host: nx.DiGraph,
-    interestingness: dict = None,
-    n_workers: int = 8,
-) -> List[dict]:
-    """
-    Get a list of mappings from motif node IDs to host graph IDs.
-
-    Results are of the form:
-
-    ```
-    [{motif_id: host_id, ...}]
-    ```
-
-    Arguments:
-        motif (nx.DiGraph): The motif graph (needle) to search for
-        host (nx.DiGraph): The host graph (haystack) to search within
-
-    Returns:
-        List[dict]: A list of mappings from motif node IDs to host graph IDs
-
-    """
-    interestingness = interestingness or uniform_node_interestingness(motif)
-
-    if isinstance(motif, nx.DiGraph):
-        # This will be a directed query.
-        directed = True
-    else:
-        directed = False
-
-    futures = []
-    results = []
-
-    # Kick off the queue with an empty candidate:
-    # q.put({})
-
-    ctx = zmq.Context.instance()
-    # Master - push/pull
-    # Worker - pull/push
-
-    push
-
-    """
-    while not q.empty():
-        new_backbone = q.get()
-        next_candidate_backbones = get_next_backbone_candidates(
-            new_backbone, motif, host, interestingness, directed=directed
-        )
-
-        for candidate in next_candidate_backbones:
-            if len(candidate) == len(motif):
-                results.append(candidate)
-            else:
-                q.put(candidate)
-    """
 
     return results
