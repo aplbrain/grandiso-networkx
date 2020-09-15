@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.1.0",
     author="Jordan Matelsky",
     author_email="opensource@matelsky.com",
-    description="Subgraph isomorphism at cloud-scale",
+    description="Performant subgraph isomorphism",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/aplbrain/grandiso-networkx",

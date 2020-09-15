@@ -26,16 +26,18 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
+from typing import List, Union
 
-from typing import List
+from functools import partial
+from multiprocessing import Process, Pool
+import threading
 import time
-
 import queue
-import multiprocessing
 
 import numpy as np
-
 import networkx as nx
+
+# import persistqueue
 
 """
 In this process, we consider the following operations to be fast:
@@ -270,7 +272,7 @@ def get_next_backbone_candidates(
     ]
 
 
-def sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict:
+def uniform_node_interestingness(motif: nx.Graph) -> dict:
     """
     Sort the nodes in a motif by their interestingness.
 
@@ -278,11 +280,12 @@ def sort_motif_nodes_by_interestingness(motif: nx.Graph) -> dict:
     list of nodes down to a smaller set.
 
     """
-    Warning("Bad implementation for sort_motif_nodes_by_interestingness")
     return {n: 1 for n in motif.nodes()}
 
 
-def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
+def find_motifs(
+    motif: nx.DiGraph, host: nx.DiGraph, interestingness: dict = None
+) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
 
@@ -300,9 +303,9 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
-    interestingness = sort_motif_nodes_by_interestingness(motif)
+    interestingness = interestingness or uniform_node_interestingness(motif)
 
-    if isinstance(motif, nx.DiGraph) and isinstance(host, nx.DiGraph):
+    if isinstance(motif, nx.DiGraph):
         # This will be a directed query.
         directed = True
     else:
@@ -311,6 +314,7 @@ def find_motifs(motif: nx.DiGraph, host: nx.DiGraph) -> List[dict]:
     q = queue.SimpleQueue()
     results = []
 
+    # Kick off the queue with an empty candidate:
     q.put({})
 
     while not q.empty():
