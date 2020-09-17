@@ -4,7 +4,7 @@ Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm t
 
 _Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable partial-match queue structure.
 
-## Pseudocode for novel "Grand-Iso" algorithm
+## Pseudocode for "Grand-Iso" algorithm
 
 ```
 - Accept a motif M, and a host graph H.
