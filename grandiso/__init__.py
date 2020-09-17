@@ -265,11 +265,33 @@ def get_next_backbone_candidates(
             + "empty backbone to this function?)"
         )
 
-    return [
+    tentative_results = [
         {**backbone, next_node: c}
         for c in candidate_nodes
         if c not in backbone.values()
     ]
+
+    # One last filtering step here. This is to catch the cases where you have
+    # successfully mapped each node, and the final node has some valid
+    # candidate_nodes (and therefore `tentative_results`).
+    # This is important: We must now check that for the assigned nodes, all
+    # edges between them DO exist in the host graph. Otherwise, when we check
+    # in find_motifs that len(motif) == len(mapping), we will discover that the
+    # mapping is "complete" even though we haven't yet checked it at all.
+    results = []
+    for mapping in tentative_results:
+        if len(mapping) == len(motif):
+            if all([
+                host.has_edge(mapping[motif_u], mapping[motif_v])
+                for motif_u, motif_v in motif.edges()
+            ]):
+                # This is a "complete" match!
+                results.append(mapping)
+        else:
+            # This is a partial match, so we'll continue building.
+            results.append(mapping)
+
+    return results
 
 
 def uniform_node_interestingness(motif: nx.Graph) -> dict:
