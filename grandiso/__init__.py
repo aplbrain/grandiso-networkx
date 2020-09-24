@@ -275,10 +275,12 @@ def get_next_backbone_candidates(
     results = []
     for mapping in tentative_results:
         if len(mapping) == len(motif):
-            if all([
-                host.has_edge(mapping[motif_u], mapping[motif_v])
-                for motif_u, motif_v in motif.edges()
-            ]):
+            if all(
+                [
+                    host.has_edge(mapping[motif_u], mapping[motif_v])
+                    for motif_u, motif_v in motif.edges()
+                ]
+            ):
                 # This is a "complete" match!
                 results.append(mapping)
         else:
@@ -300,7 +302,10 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
 
 
 def find_motifs(
-    motif: nx.DiGraph, host: nx.DiGraph, interestingness: dict = None
+    motif: nx.DiGraph,
+    host: nx.DiGraph,
+    interestingness: dict = None,
+    count_only: bool = False,
 ) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -314,9 +319,14 @@ def find_motifs(
     Arguments:
         motif (nx.DiGraph): The motif graph (needle) to search for
         host (nx.DiGraph): The host graph (haystack) to search within
+        interestingness (dict: None): A map of each node in `motif` to a float
+            number that indicates an ordinality in which to address each node
+        count_only (bool: False): If True, return only an integer count of the
+            number of motifs, rather than a list of mappings.
 
     Returns:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
+        int: If `count_only` is True, return the length of the List.
 
     """
     interestingness = interestingness or uniform_node_interestingness(motif)
@@ -328,7 +338,9 @@ def find_motifs(
         directed = False
 
     q = queue.SimpleQueue()
+
     results = []
+    results_count = 0
 
     # Kick off the queue with an empty candidate:
     q.put({})
@@ -341,8 +353,13 @@ def find_motifs(
 
         for candidate in next_candidate_backbones:
             if len(candidate) == len(motif):
-                results.append(candidate)
+                if count_only:
+                    results_count += 1
+                else:
+                    results.append(candidate)
             else:
                 q.put(candidate)
 
+    if count_only:
+        return results_count
     return results

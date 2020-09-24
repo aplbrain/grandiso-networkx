@@ -77,6 +77,20 @@ class TestSubgraphMatching(unittest.TestCase):
 
         self.assertEqual(len(find_motifs(motif, host)), 3)
 
+    def test_subgraph_equals_graph_triangle_count_only(self):
+
+        motif = nx.DiGraph()
+        motif.add_edge("A", "B")
+        motif.add_edge("B", "C")
+        motif.add_edge("C", "A")
+
+        host = nx.DiGraph()
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+
+        self.assertEqual(find_motifs(motif, host, count_only=True), 3)
+
     def test_subgraph_equals_graph_rect(self):
 
         motif = nx.DiGraph()
@@ -118,7 +132,7 @@ class TestSubgraphMatching(unittest.TestCase):
         motif.add_edge("C", "A")
 
         self.assertEqual(
-            len(find_motifs(motif, host)),
+            find_motifs(motif, host, count_only=True),
             len([i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]),
         )
 
