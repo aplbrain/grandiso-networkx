@@ -4,6 +4,44 @@ Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm t
 
 _Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable partial-match queue structure.
 
+## Example Usage
+
+```python
+from grandiso import find_motifs
+import networkx as nx
+
+host = nx.fast_gnp_random_graph(10, 0.5)
+
+motif = nx.Graph()
+motif.add_edge("A", "B")
+motif.add_edge("B", "C")
+motif.add_edge("C", "D")
+motif.add_edge("D", "A")
+
+len(find_motifs(motif, host))
+```
+
+Directed graph support:
+
+```python
+from grandiso import find_motifs
+import networkx as nx
+
+host = nx.fast_gnp_random_graph(10, 0.5, directed=True)
+
+motif = nx.DiGraph()
+motif.add_edge("A", "B")
+motif.add_edge("B", "C")
+motif.add_edge("C", "D")
+motif.add_edge("D", "A")
+
+len(find_motifs(motif, host))
+```
+
+## Counts-only
+
+For very large graphs, you may use a good chunk of RAM not only on the queue of hypotheses, but also on the list of results. If all you care about is the NUMBER of results, you should pass `count_only=True` to the `find_motifs` function. This will dramatically reduce your RAM overhead on higher-count queries.
+
 ## Pseudocode for "Grand-Iso" algorithm
 
 ```
@@ -26,36 +64,4 @@ _Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-lim
     - Continue while there are still backbones in Q.
 - Reporting
     - Return the set R to the user.
-```
-
-## Example Usage
-
-```python
-import networkx as nx
-
-host = nx.fast_gnp_random_graph(10, 0.5)
-
-motif = nx.Graph()
-motif.add_edge("A", "B")
-motif.add_edge("B", "C")
-motif.add_edge("C", "D")
-motif.add_edge("D", "A")
-
-len(find_motifs(motif, host))
-```
-
-Directed graph support:
-
-```python
-import networkx as nx
-
-host = nx.fast_gnp_random_graph(10, 0.5, directed=True)
-
-motif = nx.DiGraph()
-motif.add_edge("A", "B")
-motif.add_edge("B", "C")
-motif.add_edge("C", "D")
-motif.add_edge("D", "A")
-
-len(find_motifs(motif, host))
 ```
