@@ -273,3 +273,18 @@ class TestUndirectedSubgraphMatching:
             [i for i in GraphMatcher(host, motif).subgraph_monomorphisms_iter()]
         )
 
+
+class TestIsomorphisms:
+    @pytest.mark.parametrize(
+        "host", [nx.fast_gnp_random_graph(10, 0.3, directed=False) for _ in range(5)]
+    )
+    def test_isomorphisms_on_undirected_random_graph(self, host):
+        motif = nx.Graph()
+        motif.add_edge("A", "B")
+        motif.add_edge("A", "C")
+        motif.add_edge("A", "D")
+        motif.add_edge("A", "E")
+        assert find_motifs(motif, host, isomorphisms_only=True, count_only=True) == len(
+            [i for i in GraphMatcher(host, motif).subgraph_isomorphisms_iter()]
+        )
+

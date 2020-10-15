@@ -28,6 +28,7 @@
 """
 from typing import List, Union
 
+import itertools
 import time
 import queue
 
@@ -108,7 +109,7 @@ def get_next_backbone_candidates(
     interestingness: dict,
     next_node: str = None,
     directed: bool = True,
-    enforce_inequality: bool = True,
+    isomorphisms_only: bool = False,
 ) -> List[dict]:
     """
     Get a list of candidate node assignments for the next "step" of this map.
@@ -120,8 +121,8 @@ def get_next_backbone_candidates(
         interestingness (dict): A mapping of motif node IDs to interestingness
         next_node (str: None): Optional suggestion for the next node to assign
         directed (bool: True): Whether host and motif are both directed
-        enforce_inequality (bool: True): If true, two nodes in backbone cannot
-            be assigned to the same host-graph
+        isomorphisms_only (bool: True): If true, only isomorphisms will be
+            returned (instead of all monomorphisms)
 
     Returns:
         List[dict]: A new list of mappings with one additional element mapped
@@ -272,7 +273,11 @@ def get_next_backbone_candidates(
     # edges between them DO exist in the host graph. Otherwise, when we check
     # in find_motifs that len(motif) == len(mapping), we will discover that the
     # mapping is "complete" even though we haven't yet checked it at all.
-    results = []
+
+    # Additionally, if isomorphisms_only == True, we can use this opportunity
+    # to confirm that no spurious edges exist in the induced subgraph.
+    monomorphism_candidates = []
+
     for mapping in tentative_results:
         if len(mapping) == len(motif):
             if all(
@@ -282,12 +287,30 @@ def get_next_backbone_candidates(
                 ]
             ):
                 # This is a "complete" match!
-                results.append(mapping)
+                monomorphism_candidates.append(mapping)
         else:
             # This is a partial match, so we'll continue building.
-            results.append(mapping)
+            monomorphism_candidates.append(mapping)
 
-    return results
+    if not isomorphisms_only:
+        return monomorphism_candidates
+
+    # isomorphism filter:
+    isomorphism_candidates = []
+    for result in monomorphism_candidates:
+        for (motif_u, motif_v) in itertools.product(result.keys(), result.keys()):
+            # if the motif has this edge, then it doesn't rule any of the
+            # above results out as an isomorphism.
+            # if the motif does NOT have the edge, then NO RESULT may have
+            # the equivalent edge in the host graph:
+            if not motif.has_edge(motif_u, motif_v) and host.has_edge(
+                result[motif_u], result[motif_v]
+            ):
+                # this is a violation.
+                break
+        else:
+            isomorphism_candidates.append(result)
+    return isomorphism_candidates
 
 
 def uniform_node_interestingness(motif: nx.Graph) -> dict:
@@ -325,6 +348,7 @@ def find_motifs(
     host: nx.DiGraph,
     interestingness: dict = None,
     count_only: bool = False,
+    directed: bool = None,
     profile: bool = False,
     isomorphisms_only: bool = False,
 ) -> List[dict]:
@@ -344,6 +368,8 @@ def find_motifs(
             number that indicates an ordinality in which to address each node
         count_only (bool: False): If True, return only an integer count of the
             number of motifs, rather than a list of mappings.
+        directed (bool: None): Whether direction should be considered during
+            search. If omitted, this will be based upon the motif directedness.
         profile (bool: False): SLOWER! Whether to include additional metrics
             in addition to results. Note that you should only ever use this to
             debug or understand your results, not for use in production.
@@ -357,11 +383,13 @@ def find_motifs(
     """
     interestingness = interestingness or uniform_node_interestingness(motif)
 
-    if isinstance(motif, nx.DiGraph):
-        # This will be a directed query.
-        directed = True
-    else:
-        directed = False
+    if directed is None:
+        # guess directedness from motif
+        if isinstance(motif, nx.DiGraph):
+            # This will be a directed query.
+            directed = True
+        else:
+            directed = False
 
     if profile:
         q = ProfilingQueue()
@@ -377,7 +405,12 @@ def find_motifs(
     while not q.empty():
         new_backbone = q.get()
         next_candidate_backbones = get_next_backbone_candidates(
-            new_backbone, motif, host, interestingness, directed=directed
+            new_backbone,
+            motif,
+            host,
+            interestingness,
+            directed=directed,
+            isomorphisms_only=isomorphisms_only,
         )
 
         for candidate in next_candidate_backbones:
