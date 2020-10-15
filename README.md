@@ -11,6 +11,11 @@ Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm t
 
 _Grand-Iso_ is a subgraph isomorphism algorithm that exchanges this resource-limitation for a parallelizable partial-match queue structure.
 
+It performs favorably compared to other pure-python (and even some non-pure-python!) implementations:
+
+<img width="485" alt="image" src="https://user-images.githubusercontent.com/693511/96184546-a35e0380-0f06-11eb-8475-1921e8f94256.png">
+
+
 ## Example Usage
 
 ```python
@@ -79,4 +84,23 @@ For very large graphs, you may use a good chunk of RAM not only on the queue of 
 
 ```shell
 coverage run --source=grandiso -m pytest
+```
+
+
+## Citing
+
+If this tool is helpful to your research, please consider citing it with:
+
+```
+# https://www.biorxiv.org/content/10.1101/2020.06.08.140533v1
+@article{matelsky_2020_dotmotif,
+    doi = {10.1101/2020.06.08.140533},
+    url = {https://www.biorxiv.org/content/10.1101/2020.06.08.140533v1},
+    year = 2020,
+    month = {june},
+    publisher = {BiorXiv},
+    author = {Matelsky, Jordan K. and Reilly, Elizabeth P. and Johnson,Erik C. and Wester, Brock A. and Gray-Roncal, William},
+    title = {{Connectome subgraph isomorphisms and graph queries with DotMotif}},
+    journal = {BiorXiv}
+}
 ```
