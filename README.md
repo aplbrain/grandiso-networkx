@@ -1,4 +1,4 @@
-<p align="center"><h1>Grand Isomorphisms</h1></p>
+<h1 align=center>Grand Isomorphisms</h1>
 
 <p align="center">
 <a href="https://codecov.io/gh/aplbrain/grandiso-networkx/"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/aplbrain/grandiso-networkx?style=for-the-badge"></a>
