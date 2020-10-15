@@ -274,8 +274,6 @@ def get_next_backbone_candidates(
     # in find_motifs that len(motif) == len(mapping), we will discover that the
     # mapping is "complete" even though we haven't yet checked it at all.
 
-    # Additionally, if isomorphisms_only == True, we can use this opportunity
-    # to confirm that no spurious edges exist in the induced subgraph.
     monomorphism_candidates = []
 
     for mapping in tentative_results:
@@ -295,7 +293,8 @@ def get_next_backbone_candidates(
     if not isomorphisms_only:
         return monomorphism_candidates
 
-    # isomorphism filter:
+    # Additionally, if isomorphisms_only == True, we can use this opportunity
+    # to confirm that no spurious edges exist in the induced subgraph:
     isomorphism_candidates = []
     for result in monomorphism_candidates:
         for (motif_u, motif_v) in itertools.product(result.keys(), result.keys()):
