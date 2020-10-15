@@ -301,11 +301,32 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
     return {n: 1 for n in motif.nodes()}
 
 
+class ProfilingQueue(queue.SimpleQueue):
+    def __init__(self):
+        super(ProfilingQueue, self).__init__()
+        self._size_history = queue.SimpleQueue()
+        self._size = 0
+
+    def put(self, *args, **kwargs):
+        res = super(ProfilingQueue, self).put(*args, **kwargs)
+        self._size += 1
+        self._size_history.put(self._size)
+        return res
+
+    def get(self, *args, **kwargs):
+        res = super(ProfilingQueue, self).get(*args, **kwargs)
+        self._size -= 1
+        self._size_history.put(self._size)
+        return res
+
+
 def find_motifs(
     motif: nx.DiGraph,
     host: nx.DiGraph,
     interestingness: dict = None,
     count_only: bool = False,
+    profile: bool = False,
+    isomorphisms_only: bool = False,
 ) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -323,6 +344,11 @@ def find_motifs(
             number that indicates an ordinality in which to address each node
         count_only (bool: False): If True, return only an integer count of the
             number of motifs, rather than a list of mappings.
+        profile (bool: False): SLOWER! Whether to include additional metrics
+            in addition to results. Note that you should only ever use this to
+            debug or understand your results, not for use in production.
+        isomorphisms_only (bool: False): Whether to return isomorphisms (the
+            default is monomorphisms).
 
     Returns:
         List[dict]: A list of mappings from motif node IDs to host graph IDs
@@ -337,7 +363,10 @@ def find_motifs(
     else:
         directed = False
 
-    q = queue.SimpleQueue()
+    if profile:
+        q = ProfilingQueue()
+    else:
+        q = queue.SimpleQueue()
 
     results = []
     results_count = 0
@@ -360,6 +389,11 @@ def find_motifs(
             else:
                 q.put(candidate)
 
+    if profile:
+        if count_only:
+            return results_count, q
+        return results, q
     if count_only:
         return results_count
     return results
+
