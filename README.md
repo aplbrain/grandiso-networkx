@@ -1,4 +1,11 @@
-# Grand Isomorphisms
+<p align="center"><h1>Grand Isomorphisms</h1></p>
+
+<p align="center">
+<a href="https://codecov.io/gh/aplbrain/grandiso-networkx/"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/aplbrain/grandiso-networkx?style=for-the-badge"></a>
+<a href="https://github.com/aplbrain/grandiso-networkx/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/aplbrain/grandiso-networkx/Python%20package?style=for-the-badge"></a>
+<a href="https://bossdb.org/tools/DotMotif"><img src="https://img.shields.io/badge/Pretty Dope-👌-00ddcc.svg?style=for-the-badge" /></a>
+<img alt="GitHub" src="https://img.shields.io/github/license/aplbrain/grandiso-networkx?style=for-the-badge">
+</p>
 
 Subgraph isomorphism is a resource-heavy (but branch-parallelizable) algorithm that is hugely impactful for large graph analysis. SotA algorithms for this (Ullmann, VF2, BB-Graph) are heavily RAM-bound, but this is due to a large number of small processes each of which hold a small portion of a traversal tree in memory.
 
@@ -64,4 +71,12 @@ For very large graphs, you may use a good chunk of RAM not only on the queue of 
     - Continue while there are still backbones in Q.
 - Reporting
     - Return the set R to the user.
+```
+
+## Hacking on this repo
+
+### Running Tests
+
+```shell
+coverage run --source=grandiso -m pytest
 ```
