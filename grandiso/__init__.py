@@ -121,7 +121,7 @@ def get_next_backbone_candidates(
         interestingness (dict): A mapping of motif node IDs to interestingness
         next_node (str: None): Optional suggestion for the next node to assign
         directed (bool: True): Whether host and motif are both directed
-        isomorphisms_only (bool: True): If true, only isomorphisms will be
+        isomorphisms_only (bool: False): If true, only isomorphisms will be
             returned (instead of all monomorphisms)
 
     Returns:

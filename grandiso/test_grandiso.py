@@ -1,5 +1,6 @@
 import time
 import copy
+import random
 import pytest
 
 import networkx as nx
@@ -274,17 +275,76 @@ class TestUndirectedSubgraphMatching:
         )
 
 
-class TestIsomorphisms:
+def _random_motif():
+    g = nx.graph_atlas(random.randint(0, 30))
+    while len([c for c in nx.connected_components(g)]) != 1:
+        g = nx.graph_atlas(random.randint(0, 30))
+    return g
+
+
+def _random_host(directed=False, n=10, p=0.3):
+    g = nx.fast_gnp_random_graph(n, p, directed=directed)
+    while (
+        len(
+            [
+                c
+                for c in (
+                    nx.weakly_connected_components(g)
+                    if directed
+                    else nx.connected_components(g)
+                )
+            ]
+        )
+        != 1
+    ):
+        g = nx.fast_gnp_random_graph(n, p, directed=directed)
+    return g
+
+
+def _random_directed_motif():
+    motif = _random_motif()
+    dmotif = nx.DiGraph()
+    for (u, v) in motif.edges():
+        dmotif.add_edge(*random.choice([(u, v), (v, u)]))
+    return dmotif
+
+
+class TestRandomGraphIsomorphisms:
     @pytest.mark.parametrize(
-        "host", [nx.fast_gnp_random_graph(10, 0.3, directed=False) for _ in range(5)]
+        "host,motif",
+        [(_random_host(directed=False), _random_motif()) for _ in range(5)],
     )
-    def test_isomorphisms_on_undirected_random_graph(self, host):
-        motif = nx.Graph()
-        motif.add_edge("A", "B")
-        motif.add_edge("A", "C")
-        motif.add_edge("A", "D")
-        motif.add_edge("A", "E")
+    def test_isomorphisms_on_undirected_random_graph(self, host, motif):
         assert find_motifs(motif, host, isomorphisms_only=True, count_only=True) == len(
             [i for i in GraphMatcher(host, motif).subgraph_isomorphisms_iter()]
+        )
+
+    @pytest.mark.parametrize(
+        "host,motif",
+        [(_random_host(directed=True), _random_directed_motif()) for _ in range(5)],
+    )
+    def test_isomorphisms_on_directed_random_graph(self, host, motif):
+        assert find_motifs(
+            motif, host, directed=True, isomorphisms_only=True, count_only=True
+        ) == len([i for i in DiGraphMatcher(host, motif).subgraph_isomorphisms_iter()])
+
+
+class TestRandomGraphMonomorphisms:
+    @pytest.mark.parametrize(
+        "host,motif",
+        [(_random_host(directed=False), _random_motif()) for _ in range(5)],
+    )
+    def test_monomorphisms_on_undirected_random_graph(self, host, motif):
+        assert find_motifs(motif, host, count_only=True) == len(
+            [i for i in GraphMatcher(host, motif).subgraph_monomorphisms_iter()]
+        )
+
+    @pytest.mark.parametrize(
+        "host,motif",
+        [(_random_host(directed=True), _random_directed_motif()) for _ in range(5)],
+    )
+    def test_monomorphisms_on_directed_random_graph(self, host, motif):
+        assert find_motifs(motif, host, directed=True, count_only=True) == len(
+            [i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]
         )
 
