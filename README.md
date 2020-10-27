@@ -54,6 +54,20 @@ len(find_motifs(motif, host))
 
 For very large graphs, you may use a good chunk of RAM not only on the queue of hypotheses, but also on the list of results. If all you care about is the NUMBER of results, you should pass `count_only=True` to the `find_motifs` function. This will dramatically reduce your RAM overhead on higher-count queries.
 
+
+## All Arguments to `find_motifs`
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `motif` | `nx.Graph` | | The motif to search for. Either a `nx.Graph` or `nx.DiGraph`. You can also pass something `networkx.Graph`-flavored, like a [grand.Graph](https://github.com/aplbrain/grand). |
+| `host` | `nx.Graph` | | The "haystack" graph to search within. Either a `nx.Graph` or `nx.DiGraph`. You can also pass something `networkx.Graph`-flavored, like a [grand.Graph](https://github.com/aplbrain/grand). |
+| `interestingness` | `dict` | `None` | A lookup dictionary that assigns a floating number between 0 and 1 to each node in the `motif` graph. Nodes with values closest to 1 will be preferred when the candidate-mapper advances the exploration front. If this doesn't make sense to you, you can ignore this argument entirely. If none is provided, this will default to a uniform interestness metric where all nodes are considered equally. |
+| `count_only` | `bool` | `False` | Whether to return only a count of motifs, rather than a list of mappings. If you set this to `True`, you will get back an integer result, not a list of dicts. |
+| `directed` | `bool` | `None` | Whether to enforce a directed/undirected search. True means enforce directivity; False means enforce undirected search. The default (None) will guess based upon your motif and host. |
+| `profile` | `bool` | `False` | Whether to slow down execution but give you a better idea of where your RAM usage is going. This is better ignored unless you're debugging something particularly nuanced. |
+| `isomorphisms_only` | `bool` | `False` | Whether to search only for isomorphisms. In other words, whether to search for edges that exist in the node-induced subgraph. |
+
+
 ## Pseudocode for "Grand-Iso" algorithm
 
 ```
