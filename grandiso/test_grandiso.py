@@ -175,6 +175,20 @@ class TestSubgraphMatching:
             [i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]
         )
 
+    def test_falsy_node_names(self):
+
+        motif = nx.DiGraph()
+        motif.add_edge(0, 1)
+        motif.add_edge(1, 2)
+        motif.add_edge(2, 0)
+
+        host = nx.DiGraph()
+        host.add_edge(0, 1)
+        host.add_edge(1, 2)
+        host.add_edge(2, 0)
+
+        assert len(find_motifs(motif, host)) == 3
+
 
 class TestUndirectedSubgraphMatching:
     def test_subgraph_equals_graph_triangle(self):
