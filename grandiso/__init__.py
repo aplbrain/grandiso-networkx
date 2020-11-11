@@ -217,10 +217,10 @@ def get_next_backbone_candidates(
         # :(
         (source, _, target) = required_edges[0]
         if directed:
-            if source:
+            if source is not None:
                 # this is a "from" edge:
                 candidate_nodes = list(host.adj[backbone[source]])
-            elif target:
+            elif target is not None:
                 # this is a "from" edge:
                 candidate_nodes = list(host.pred[backbone[target]])
         else:
@@ -234,10 +234,10 @@ def get_next_backbone_candidates(
         candidate_nodes_set = set()
         for (source, _, target) in required_edges:
             if directed:
-                if source:
+                if source is not None:
                     # this is a "from" edge:
                     candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
-                elif target:
+                elif target is not None:
                     # this is a "from" edge:
                     candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
             else:
