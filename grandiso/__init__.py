@@ -264,6 +264,7 @@ def get_next_backbone_candidates(
         {**backbone, next_node: c}
         for c in candidate_nodes
         if c not in backbone.values()
+        and is_node_structural_match(next_node, c, motif, host)
     ]
 
     # One last filtering step here. This is to catch the cases where you have

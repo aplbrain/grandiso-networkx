@@ -362,3 +362,13 @@ class TestRandomGraphMonomorphisms:
             [i for i in DiGraphMatcher(host, motif).subgraph_monomorphisms_iter()]
         )
 
+
+class TestSubcliques:
+    def test_subcliques_slow(self):
+        host = nx.star_graph(30000)
+        host.add_edge(6, 9)
+
+        motif = nx.complete_graph(3)
+
+        assert find_motifs(motif, host, count_only=True) == 6
+
