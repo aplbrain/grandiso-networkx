@@ -372,3 +372,52 @@ class TestSubcliques:
 
         assert find_motifs(motif, host, count_only=True) == 6
 
+
+class TestHints:
+    @pytest.mark.parametrize(
+        "host,motif",
+        [(_random_host(directed=False), _random_motif()) for _ in range(5)],
+    )
+    def test_empty_hints(self, host, motif):
+        assert find_motifs(motif, host, count_only=True, hints=[]) == len(
+            [i for i in GraphMatcher(host, motif).subgraph_monomorphisms_iter()]
+        )
+
+    def test_broken_hints_have_no_results(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["A", "B", "C", "A"])
+        assert (
+            find_motifs(motif, host, count_only=True, hints=[{"A": "A", "B": "A"}]) == 0
+        )
+        assert (
+            find_motifs(motif, host, count_only=True, hints=[{"A": "A", "B": "C"}]) == 0
+        )
+
+    def test_some_hints_have_values(self):
+        # One mapping will fail, the other is valid:
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["A", "B", "C", "A"])
+        assert (
+            find_motifs(
+                motif,
+                host,
+                count_only=True,
+                hints=[{"A": "A", "B": "C"}, {"A": "A", "B": "B"}],
+            )
+            == 1
+        )
+
+    def test_basic_hints(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["a", "b", "c", "a"])
+        assert find_motifs(motif, host, count_only=True, hints=[{"a": "A"}]) == 1
+        assert (
+            find_motifs(motif, host, count_only=True, hints=[{"a": "A"}, {"b": "A"}])
+            == 2
+        )
