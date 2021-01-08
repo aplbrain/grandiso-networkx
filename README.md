@@ -66,6 +66,38 @@ For very large graphs, you may use a good chunk of RAM not only on the queue of 
 | `directed` | `bool` | `None` | Whether to enforce a directed/undirected search. True means enforce directivity; False means enforce undirected search. The default (None) will guess based upon your motif and host. |
 | `profile` | `bool` | `False` | Whether to slow down execution but give you a better idea of where your RAM usage is going. This is better ignored unless you're debugging something particularly nuanced. |
 | `isomorphisms_only` | `bool` | `False` | Whether to search only for isomorphisms. In other words, whether to search for edges that exist in the node-induced subgraph. |
+| `hints` | `List[Dict[Hashable, Hashable]]` | A list of valid candidate mappings to use as the starting seeds for new maps. See _Using Hints_, below. |
+
+
+## Using Hints
+
+GrandIso optionally accepts an argument `hints` which is a list of valid partial mappings to use to seed the search. For example, in this code:
+
+```python
+host = nx.DiGraph()
+nx.add_path(host, ["A", "B", "C", "A"])
+motif = nx.DiGraph()
+nx.add_path(motif, ["a", "b", "c", "a"])
+
+find_motifs(motif, host)
+```
+
+There are three valid mappings (because each of `A`, `B`, and `C` can map to `a`, `b`, or `c`).
+
+We can declare that node `A` maps to node `a` or `b` like this:
+
+```python
+host = nx.DiGraph()
+nx.add_path(host, ["A", "B", "C", "A"])
+motif = nx.DiGraph()
+nx.add_path(motif, ["a", "b", "c", "a"])
+
+find_motifs(
+    motif, host, 
+    hints=[{"A": "a"}, {"A", "a"}]
+)
+```
+
 
 
 ## Pseudocode for "Grand-Iso" algorithm

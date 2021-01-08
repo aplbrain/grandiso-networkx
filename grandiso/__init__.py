@@ -26,7 +26,7 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
-from typing import List, Union
+from typing import Dict, Hashable, List, Union
 
 import itertools
 import time
@@ -351,6 +351,7 @@ def find_motifs(
     directed: bool = None,
     profile: bool = False,
     isomorphisms_only: bool = False,
+    hints: List[Dict[Hashable, Hashable]] = None,
 ) -> List[dict]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -400,7 +401,11 @@ def find_motifs(
     results_count = 0
 
     # Kick off the queue with an empty candidate:
-    q.put({})
+    if hints is None or hints == []:
+        q.put({})
+    else:
+        for hint in hints:
+            q.put(hint)
 
     while not q.empty():
         new_backbone = q.get()
