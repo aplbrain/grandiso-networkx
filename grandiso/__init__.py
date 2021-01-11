@@ -34,6 +34,8 @@ import queue
 
 import networkx as nx
 
+__version__ = "1.0.0"
+
 """
 In this process, we consider the following operations to be fast:
 

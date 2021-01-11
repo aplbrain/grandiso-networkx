@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="grandiso",
-    version="0.1.0",
+    version="1.0.0",
     author="Jordan Matelsky",
     author_email="opensource@matelsky.com",
     description="Performant subgraph isomorphism",

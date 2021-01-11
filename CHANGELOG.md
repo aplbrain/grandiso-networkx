@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v1.0.0
+## v1.0.0 (January 11 2021)
 
 > This version adds map hinting in order to let a user specify partial matches in the `find_motifs` call.
 
