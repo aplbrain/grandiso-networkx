@@ -93,7 +93,7 @@ nx.add_path(motif, ["a", "b", "c", "a"])
 
 find_motifs(
     motif, host,
-    hints=[{"A": "a"}, {"A", "a"}]
+    hints=[{"A": "a"}, {"A", "b"}]
 )
 ```
 
