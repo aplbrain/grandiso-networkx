@@ -66,6 +66,7 @@ For very large graphs, you may use a good chunk of RAM not only on the queue of 
 | `profile`           | `bool`                           | `False`                                                                                                 | Whether to slow down execution but give you a better idea of where your RAM usage is going. This is better ignored unless you're debugging something particularly nuanced.                                                                                                                                                                                                                                 |
 | `isomorphisms_only` | `bool`                           | `False`                                                                                                 | Whether to search only for isomorphisms. In other words, whether to search for edges that exist in the node-induced subgraph.                                                                                                                                                                                                                                                                              |
 | `hints`             | `List[Dict[Hashable, Hashable]]` | A list of valid candidate mappings to use as the starting seeds for new maps. See _Using Hints_, below. |
+| `limit`             | `int`                            | An optional integer limit of results to return. If the limit is reached, the search will return early.  |
 
 ## Using Hints
 
@@ -133,15 +134,14 @@ coverage run --source=grandiso -m pytest
 If this tool is helpful to your research, please consider citing it with:
 
 ```bibtex
-# https://www.biorxiv.org/content/10.1101/2020.06.08.140533v1
+# https://doi.org/10.1101/2020.06.08.140533
 @article{matelsky_2020_dotmotif,
-    doi = {10.1101/2020.06.08.140533},
-    url = {https://www.biorxiv.org/content/10.1101/2020.06.08.140533v2},
-    year = 2020,
-    month = {june},
-    publisher = {BiorXiv},
-    author = {Matelsky, Jordan K. and Reilly, Elizabeth P. and Johnson,Erik C. and Wester, Brock A. and Gray-Roncal, William},
-    title = {{Connectome subgraph isomorphisms and graph queries with DotMotif}},
-    journal = {BiorXiv}
+    title={{DotMotif: An open-source tool for connectome subgraph isomorphism search and graph queries}},
+    url={http://dx.doi.org/10.1101/2020.06.08.140533},
+    DOI={10.1101/2020.06.08.140533},
+    publisher={Cold Spring Harbor Laboratory},
+    author={Matelsky, Jordan K. and Reilly, Elizabeth P. and Johnson, Erik C. and Stiso, Jennifer and Bassett, Danielle S. and Wester, Brock A. and Gray-Roncal, William},
+    year={2020},
+    month={Jun}
 }
 ```
