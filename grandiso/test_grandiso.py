@@ -421,3 +421,25 @@ class TestHints:
             find_motifs(motif, host, count_only=True, hints=[{"a": "A"}, {"b": "A"}])
             == 2
         )
+
+
+class TestLimits:
+    def test_zero_limit(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        assert find_motifs(motif, host, count_only=True, limit=0) == 336
+
+    def test_limit_one(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        assert find_motifs(motif, host, count_only=True, limit=1) == 1
+
+    def test_limit_eq_answer(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        assert find_motifs(motif, host, count_only=True, limit=336) == 336
+
+    def test_limit_gt_answer(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        assert find_motifs(motif, host, count_only=True, limit=338) == 336

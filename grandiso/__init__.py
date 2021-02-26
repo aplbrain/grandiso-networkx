@@ -26,7 +26,7 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
-from typing import Dict, Hashable, List, Union
+from typing import Any, Dict, Hashable, List, Optional, Tuple, Union
 
 import itertools
 import time
@@ -34,7 +34,7 @@ import queue
 
 import networkx as nx
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 """
 In this process, we consider the following operations to be fast:
@@ -157,7 +157,7 @@ def get_next_backbone_candidates(
         ]
 
     else:
-        _node_with_greatest_backbone_count = None
+        _node_with_greatest_backbone_count: Optional[str] = None
         _greatest_backbone_count = 0
         for motif_node_id in motif.nodes():
             if motif_node_id in backbone:
@@ -239,9 +239,12 @@ def get_next_backbone_candidates(
                 if source is not None:
                     # this is a "from" edge:
                     candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
-                elif target is not None:
+                # elif target is not None:
+                else:  # target is not None:
                     # this is a "from" edge:
                     candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
+                # else:
+                #     raise AssertionError("Encountered an impossible condition: At least one of source or target must be defined.")
             else:
                 candidate_nodes_from_this_edge = list(host.adj[backbone[target]])
             if len(candidate_nodes_set) == 0:
@@ -354,7 +357,8 @@ def find_motifs(
     profile: bool = False,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
-) -> List[dict]:
+    limit: int = None,
+) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
 
@@ -376,12 +380,20 @@ def find_motifs(
         profile (bool: False): SLOWER! Whether to include additional metrics
             in addition to results. Note that you should only ever use this to
             debug or understand your results, not for use in production.
+        hints (dict): A dictionary of initial starting mappings. By default,
+            searches for all instances. You can constrain a node by passing a
+            list with a single dict item: `[{motifId: hostId}]`.
+        limit (int: None): A limit to place on the number of returned mappings.
+            The search will terminate once the limit is reached.
         isomorphisms_only (bool: False): Whether to return isomorphisms (the
             default is monomorphisms).
 
     Returns:
-        List[dict]: A list of mappings from motif node IDs to host graph IDs
+        int, List[dict], Tuple[List[dict], queue.Queue]
         int: If `count_only` is True, return the length of the List.
+        List[dict]: A list of mappings from motif node IDs to host graph IDs
+        Tuple[List[dict], queue.Queue]: If `profile` is true. Also includes the
+            queue that was used to perform the search.
 
     """
     interestingness = interestingness or uniform_node_interestingness(motif)
@@ -424,8 +436,20 @@ def find_motifs(
             if len(candidate) == len(motif):
                 if count_only:
                     results_count += 1
+                    if limit and results_count >= limit:
+                        # perform return logic
+                        if profile:
+                            return results_count, q
+                        else:
+                            return results_count
                 else:
                     results.append(candidate)
+                    if limit and len(results) >= limit:
+                        # perform return logic
+                        if profile:
+                            return results, q
+                        return results
+
             else:
                 q.put(candidate)
 
