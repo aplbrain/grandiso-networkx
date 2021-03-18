@@ -16,6 +16,8 @@ It performs favorably compared to other pure-python (and even some non-pure-pyth
 
 <img width="485" alt="image" src="https://user-images.githubusercontent.com/693511/96184546-a35e0380-0f06-11eb-8475-1921e8f94256.png">
 
+See the [wiki](https://github.com/aplbrain/grandiso-networkx/wiki) for more documentation.
+
 ## Example Usage
 
 ```python
