@@ -27,9 +27,8 @@
     - Delete the results table (after collection)
 """
 from typing import Any, Dict, Hashable, List, Optional, Tuple, Union
-
+from inspect import isclass
 import itertools
-import time
 import queue
 
 import networkx as nx
@@ -238,15 +237,15 @@ def get_next_backbone_candidates(
             if directed:
                 if source is not None:
                     # this is a "from" edge:
-                    candidate_nodes_from_this_edge = list(host.adj[backbone[source]])
+                    candidate_nodes_from_this_edge = host.adj[backbone[source]]
                 # elif target is not None:
                 else:  # target is not None:
                     # this is a "from" edge:
-                    candidate_nodes_from_this_edge = list(host.pred[backbone[target]])
+                    candidate_nodes_from_this_edge = host.pred[backbone[target]]
                 # else:
                 #     raise AssertionError("Encountered an impossible condition: At least one of source or target must be defined.")
             else:
-                candidate_nodes_from_this_edge = list(host.adj[backbone[target]])
+                candidate_nodes_from_this_edge = host.adj[backbone[target]]
             if len(candidate_nodes_set) == 0:
                 # This is the first edge we're checking, so set the candidate
                 # nodes set to ALL possible candidates.
@@ -329,32 +328,14 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
     return {n: 1 for n in motif.nodes()}
 
 
-class ProfilingQueue(queue.SimpleQueue):
-    def __init__(self):
-        super(ProfilingQueue, self).__init__()
-        self._size_history = queue.SimpleQueue()
-        self._size = 0
-
-    def put(self, *args, **kwargs):
-        res = super(ProfilingQueue, self).put(*args, **kwargs)
-        self._size += 1
-        self._size_history.put(self._size)
-        return res
-
-    def get(self, *args, **kwargs):
-        res = super(ProfilingQueue, self).get(*args, **kwargs)
-        self._size -= 1
-        self._size_history.put(self._size)
-        return res
-
-
 def find_motifs(
-    motif: nx.DiGraph,
-    host: nx.DiGraph,
+    motif: nx.Graph,
+    host: nx.Graph,
     interestingness: dict = None,
     count_only: bool = False,
     directed: bool = None,
     profile: bool = False,
+    queue_=queue.SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
     limit: int = None,
@@ -380,6 +361,7 @@ def find_motifs(
         profile (bool: False): SLOWER! Whether to include additional metrics
             in addition to results. Note that you should only ever use this to
             debug or understand your results, not for use in production.
+        queue_ (queue.Queue): What kind of queue to use.
         hints (dict): A dictionary of initial starting mappings. By default,
             searches for all instances. You can constrain a node by passing a
             list with a single dict item: `[{motifId: hostId}]`.
@@ -406,10 +388,7 @@ def find_motifs(
         else:
             directed = False
 
-    if profile:
-        q = ProfilingQueue()
-    else:
-        q = queue.SimpleQueue()
+    q = queue_() if isclass(queue_) else queue_
 
     results = []
     results_count = 0
