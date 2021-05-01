@@ -26,7 +26,7 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
-from typing import Any, Dict, Hashable, List, Optional, Tuple, Union
+from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, Union
 from inspect import isclass
 import itertools
 import queue
@@ -327,15 +327,21 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
     """
     return {n: 1 for n in motif.nodes()}
 
-def find_motifs_iter(motif: nx.Graph,
+
+def find_motifs_iter(
+    motif: nx.Graph,
     host: nx.Graph,
     interestingness: dict = None,
     directed: bool = None,
     queue_=queue.SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
-    profile: bool=False
-) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
+    profile: bool = False,
+) -> Union[
+    int,
+    Generator[dict, None, None],
+    Tuple[Union[int, Generator[dict, None, None]], Any],
+]:
     """
     Yield mappings from motif node IDs to host graph IDs.
 
@@ -364,7 +370,7 @@ def find_motifs_iter(motif: nx.Graph,
 
     Returns:
         dict, Tuple[dict, queue.Queue]
-        
+
         dict: A mappings from motif node IDs to host graph IDs
         Tuple[dict, queue.Queue]: If `profile` is true. Also includes the
             current queue that is being used to perform the search.
@@ -402,19 +408,21 @@ def find_motifs_iter(motif: nx.Graph,
         for candidate in next_candidate_backbones:
             if len(candidate) == len(motif):
                 if profile:
-                    yield q,candidate
+                    yield q, candidate
                 else:
                     yield candidate
             else:
                 q.put(candidate)
-    
+
 
 def find_motifs(
+    motif: nx.Graph,
+    host: nx.Graph,
     *args,
     count_only: bool = False,
     profile: bool = False,
     limit: int = None,
-    **kwargs
+    **kwargs,
 ) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
@@ -426,17 +434,15 @@ def find_motifs(
     ```
 
     Arguments:
-        
         count_only (bool: False): If True, return only an integer count of the
             number of motifs, rather than a list of mappings.
-        
         profile (bool: False): SLOWER! Whether to include additional metrics
             in addition to results. Note that you should only ever use this to
             debug or understand your results, not for use in production.
-        
         limit (int: None): A limit to place on the number of returned mappings.
             The search will terminate once the limit is reached.
         see grandiso#find_motifs_iter for remaining options.
+
     Returns:
         int, List[dict], Tuple[List[dict], queue.Queue]
         int: If `count_only` is True, return the length of the List.
@@ -445,15 +451,14 @@ def find_motifs(
             queue that was used to perform the search.
 
     """
-    
     results = []
     results_count = 0
-    for qresult in find_motifs_iter(*args,profile=profile, **kwargs):
+    for qresult in find_motifs_iter(motif, host, *args, profile=profile, **kwargs):
         if profile:
-            q,result = qresult
+            q, result = qresult
         else:
             result = qresult
-    
+
         results_count += 1
         if limit and results_count >= limit:
             if count_only:
@@ -470,8 +475,7 @@ def find_motifs(
                     return results
         if not count_only:
             results.append(result)
-    
-    
+
     if profile:
         if count_only:
             return results_count, q
