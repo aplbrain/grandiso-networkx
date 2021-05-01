@@ -6,7 +6,7 @@ import pytest
 import networkx as nx
 from networkx.algorithms.isomorphism import DiGraphMatcher, GraphMatcher
 
-from . import find_motifs
+from . import find_motifs, find_motifs_iter
 
 
 class TestSubgraphMatching:
@@ -21,7 +21,7 @@ class TestSubgraphMatching:
         host.add_edge("A", "B")
         host.add_edge("B", "C")
 
-        assert len(find_motifs(motif, host)) == 0
+        assert len(list(find_motifs_iter(motif, host))) == 0
 
     def test_finds_no_rect_in_zero_rect_graph(self):
 
@@ -51,7 +51,7 @@ class TestSubgraphMatching:
         host.add_edge("A", "B")
         host.add_edge("B", "C")
 
-        assert len(find_motifs(motif, host)) == 0
+        assert len(list(find_motifs_iter(motif, host))) == 0
 
     def test_finds_no_motifs_in_small_graph(self):
 
