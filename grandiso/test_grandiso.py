@@ -6,7 +6,7 @@ import pytest
 import networkx as nx
 from networkx.algorithms.isomorphism import DiGraphMatcher, GraphMatcher
 
-from . import find_motifs
+from . import find_motifs, find_motifs_iter
 
 
 class TestSubgraphMatching:
@@ -21,7 +21,7 @@ class TestSubgraphMatching:
         host.add_edge("A", "B")
         host.add_edge("B", "C")
 
-        assert len(find_motifs(motif, host)) == 0
+        assert len(list(find_motifs_iter(motif, host))) == 0
 
     def test_finds_no_rect_in_zero_rect_graph(self):
 
@@ -51,7 +51,7 @@ class TestSubgraphMatching:
         host.add_edge("A", "B")
         host.add_edge("B", "C")
 
-        assert len(find_motifs(motif, host)) == 0
+        assert len(list(find_motifs_iter(motif, host))) == 0
 
     def test_finds_no_motifs_in_small_graph(self):
 
@@ -443,3 +443,28 @@ class TestLimits:
         host = nx.complete_graph(8)
         motif = nx.complete_graph(3)
         assert find_motifs(motif, host, count_only=True, limit=338) == 336
+
+
+class TestIterator:
+    def test_zero_limit(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        assert len(list(find_motifs_iter(motif, host))) == 336
+
+    def test_can_get_next_result(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        result = next(find_motifs_iter(motif, host))
+        assert isinstance(result, dict)
+
+    def test_fails_on_invalid_hint(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        with pytest.raises(Exception):
+            next(find_motifs_iter(motif, host, hints=[{"F": "X"}]))
+
+    def test_(self):
+        host = nx.complete_graph(8)
+        motif = nx.complete_graph(3)
+        result = next(find_motifs_iter(motif, host, profile=True))
+        assert isinstance(result, tuple)

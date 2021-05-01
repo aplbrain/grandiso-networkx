@@ -433,6 +433,8 @@ def find_motifs(
     [{motif_id: host_id, ...}]
     ```
 
+    See grandiso#find_motifs_iter for full argument list.
+
     Arguments:
         count_only (bool: False): If True, return only an integer count of the
             number of motifs, rather than a list of mappings.
@@ -441,7 +443,7 @@ def find_motifs(
             debug or understand your results, not for use in production.
         limit (int: None): A limit to place on the number of returned mappings.
             The search will terminate once the limit is reached.
-        see grandiso#find_motifs_iter for remaining options.
+
 
     Returns:
         int, List[dict], Tuple[List[dict], queue.Queue]
