@@ -83,3 +83,7 @@ If this tool is helpful to your research, please consider citing it with:
     month={Jun}
 }
 ```
+
+---
+
+<p align=center><b>Made with 💙 at <a href="https://jhuapl.edu"><img alt="JHU APL" src="https://user-images.githubusercontent.com/693511/116814564-9b268800-ab27-11eb-98bb-dfddb2e405a1.png" height="23px" /></a></b></p>
