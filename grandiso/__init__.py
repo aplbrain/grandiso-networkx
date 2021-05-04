@@ -26,7 +26,7 @@
     - Delete the backbone queue
     - Delete the results table (after collection)
 """
-from typing import Any, Dict, Hashable, List, Optional, Tuple, Union
+from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, Union
 from inspect import isclass
 import itertools
 import queue
@@ -328,25 +328,27 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
     return {n: 1 for n in motif.nodes()}
 
 
-def find_motifs(
+def find_motifs_iter(
     motif: nx.Graph,
     host: nx.Graph,
     interestingness: dict = None,
-    count_only: bool = False,
     directed: bool = None,
-    profile: bool = False,
     queue_=queue.SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
-    limit: int = None,
-) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
+    profile: bool = False,
+) -> Union[
+    int,
+    Generator[dict, None, None],
+    Tuple[Union[int, Generator[dict, None, None]], Any],
+]:
     """
-    Get a list of mappings from motif node IDs to host graph IDs.
+    Yield mappings from motif node IDs to host graph IDs.
 
     Results are of the form:
 
     ```
-    [{motif_id: host_id, ...}]
+    {motif_id: host_id, ...}
     ```
 
     Arguments:
@@ -354,8 +356,6 @@ def find_motifs(
         host (nx.DiGraph): The host graph (haystack) to search within
         interestingness (dict: None): A map of each node in `motif` to a float
             number that indicates an ordinality in which to address each node
-        count_only (bool: False): If True, return only an integer count of the
-            number of motifs, rather than a list of mappings.
         directed (bool: None): Whether direction should be considered during
             search. If omitted, this will be based upon the motif directedness.
         profile (bool: False): SLOWER! Whether to include additional metrics
@@ -365,21 +365,18 @@ def find_motifs(
         hints (dict): A dictionary of initial starting mappings. By default,
             searches for all instances. You can constrain a node by passing a
             list with a single dict item: `[{motifId: hostId}]`.
-        limit (int: None): A limit to place on the number of returned mappings.
-            The search will terminate once the limit is reached.
         isomorphisms_only (bool: False): Whether to return isomorphisms (the
             default is monomorphisms).
 
     Returns:
-        int, List[dict], Tuple[List[dict], queue.Queue]
-        int: If `count_only` is True, return the length of the List.
-        List[dict]: A list of mappings from motif node IDs to host graph IDs
-        Tuple[List[dict], queue.Queue]: If `profile` is true. Also includes the
-            queue that was used to perform the search.
+        dict, Tuple[dict, queue.Queue]
+
+        dict: A mappings from motif node IDs to host graph IDs
+        Tuple[dict, queue.Queue]: If `profile` is true. Also includes the
+            current queue that is being used to perform the search.
 
     """
     interestingness = interestingness or uniform_node_interestingness(motif)
-
     if directed is None:
         # guess directedness from motif
         if isinstance(motif, nx.DiGraph):
@@ -389,9 +386,6 @@ def find_motifs(
             directed = False
 
     q = queue_() if isclass(queue_) else queue_
-
-    results = []
-    results_count = 0
 
     # Kick off the queue with an empty candidate:
     if hints is None or hints == []:
@@ -413,24 +407,76 @@ def find_motifs(
 
         for candidate in next_candidate_backbones:
             if len(candidate) == len(motif):
-                if count_only:
-                    results_count += 1
-                    if limit and results_count >= limit:
-                        # perform return logic
-                        if profile:
-                            return results_count, q
-                        else:
-                            return results_count
+                if profile:
+                    yield q, candidate
                 else:
-                    results.append(candidate)
-                    if limit and len(results) >= limit:
-                        # perform return logic
-                        if profile:
-                            return results, q
-                        return results
-
+                    yield candidate
             else:
                 q.put(candidate)
+
+
+def find_motifs(
+    motif: nx.Graph,
+    host: nx.Graph,
+    *args,
+    count_only: bool = False,
+    profile: bool = False,
+    limit: int = None,
+    **kwargs,
+) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
+    """
+    Get a list of mappings from motif node IDs to host graph IDs.
+
+    Results are of the form:
+
+    ```
+    [{motif_id: host_id, ...}]
+    ```
+
+    See grandiso#find_motifs_iter for full argument list.
+
+    Arguments:
+        count_only (bool: False): If True, return only an integer count of the
+            number of motifs, rather than a list of mappings.
+        profile (bool: False): SLOWER! Whether to include additional metrics
+            in addition to results. Note that you should only ever use this to
+            debug or understand your results, not for use in production.
+        limit (int: None): A limit to place on the number of returned mappings.
+            The search will terminate once the limit is reached.
+
+
+    Returns:
+        int, List[dict], Tuple[List[dict], queue.Queue]
+        int: If `count_only` is True, return the length of the List.
+        List[dict]: A list of mappings from motif node IDs to host graph IDs
+        Tuple[List[dict], queue.Queue]: If `profile` is true. Also includes the
+            queue that was used to perform the search.
+
+    """
+    results = []
+    results_count = 0
+    for qresult in find_motifs_iter(motif, host, *args, profile=profile, **kwargs):
+        if profile:
+            q, result = qresult
+        else:
+            result = qresult
+
+        results_count += 1
+        if limit and results_count >= limit:
+            if count_only:
+                # perform return logic
+                if profile:
+                    return results_count, q
+                else:
+                    return results_count
+            else:
+                if limit and results_count >= limit:
+                    # perform return logic
+                    if profile:
+                        return results, q
+                    return results
+        if not count_only:
+            results.append(result)
 
     if profile:
         if count_only:
