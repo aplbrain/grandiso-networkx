@@ -2,9 +2,9 @@
 
 ## v1.2.0 (Unreleased)
 
-- Features
+-   Features
     -   Adds a `queues` submodule to enable customized queue construction behavior (breadth-first or depth-first traversal).
-
+    -   Adds a new `find_motifs_iter` function call which returns a generator. You can now sip results from this iterable without waiting for the full search to complete. Thanks to @Raphtor!
 
 ## [v1.1.0 (February 26 2021)](https://pypi.org/project/grandiso/1.1.0/)
 
