@@ -132,7 +132,7 @@ def get_next_backbone_candidates(
         # without being an insane person, let's filter on max degree in host:
         return [
             {next_node: n}
-            for n in host.nodes()
+            for n in host.nodes
             if is_node_attr_match(next_node, n, motif, host)
             and is_node_structural_match(next_node, n, motif, host)
         ]
@@ -140,7 +140,7 @@ def get_next_backbone_candidates(
     else:
         _node_with_greatest_backbone_count: Optional[str] = None
         _greatest_backbone_count = 0
-        for motif_node_id in motif.nodes():
+        for motif_node_id in motif.nodes:
             if motif_node_id in backbone:
                 continue
             # How many connections to existing backbone?
@@ -269,7 +269,7 @@ def get_next_backbone_candidates(
             if all(
                 [
                     host.has_edge(mapping[motif_u], mapping[motif_v])
-                    for motif_u, motif_v in motif.edges()
+                    for motif_u, motif_v in motif.edges
                 ]
             ):
                 # This is a "complete" match!
@@ -308,7 +308,7 @@ def uniform_node_interestingness(motif: nx.Graph) -> dict:
     list of nodes down to a smaller set.
 
     """
-    return {n: 1 for n in motif.nodes()}
+    return {n: 1 for n in motif.nodes}
 
 
 def find_motifs_iter(
