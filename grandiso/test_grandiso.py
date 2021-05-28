@@ -462,9 +462,3 @@ class TestIterator:
         motif = nx.complete_graph(3)
         with pytest.raises(Exception):
             next(find_motifs_iter(motif, host, hints=[{"F": "X"}]))
-
-    def test_(self):
-        host = nx.complete_graph(8)
-        motif = nx.complete_graph(3)
-        result = next(find_motifs_iter(motif, host, profile=True))
-        assert isinstance(result, tuple)
