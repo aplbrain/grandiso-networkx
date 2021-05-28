@@ -113,4 +113,3 @@ Returns True if the queue is empty.
 ### Returns
 > - **bool** (`None`: `None`): True if the queue has nothing more to pop
 
-
