@@ -1,9 +1,11 @@
 # CHANGELOG
 
-## v1.2.1 (Unreleased)
+## v2.0.0 (Unreleased)
 
 -   Features
     -   Memoize node match function calls, and enable the user to pass custom node match functions. This greatly improves worst-case performance by removing excess calls to the note match functions, at the cost of additional memory.
+-   Housekeeping
+    -   Remove the `profile` argument and profiling flow. (For profiling needs, you can now pass a profiling queue from the `queues` submodule.)
 
 ## [v1.2.0 (May 4 2021)](https://pypi.org/project/grandiso/1.2.0/)
 
