@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## v1.2.0 (Unreleased)
+## v1.2.1 (Unreleased)
+
+-   Features
+    -   Memoize node match function calls, and enable the user to pass custom node match functions. This greatly improves worst-case performance by removing excess calls to the note match functions, at the cost of additional memory.
+
+## [v1.2.0 (May 4 2021)](https://pypi.org/project/grandiso/1.2.0/)
 
 -   Features
     -   Adds a `queues` submodule to enable customized queue construction behavior (breadth-first or depth-first traversal).
