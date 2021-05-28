@@ -1,37 +1,12 @@
-"""
-- Provision a results table.
-- Preprocessing
-    - Identify highest-degree node in motif, M1
-    - Identify second-highest degree node in motif, M2, connected to M1 by
-        a single edge.
-    - Identify all nodes with degree of M1 or greater in the host graph,
-        which also have all required attributes of the M1 and M2 nodes. If
-        neither M1 nor M2 have degree > 1 nor attributes, select M1 and M2 as
-        two nodes with attributes defined.
-    - Enumerate all paths in the host graph from M1 candidates to M2 candidates,
-        as candidate "backbones" in a queue.
-- Motif Search
-    - For each backbone candidate:
-        - Schedule an AWS Lambda:
-            - Pop the backbone from the queue.
-            - Traverse all shortest paths in the motif starting at the nearest
-                of either M1 or M2
-            - If multiple nodes are valid candidates, queue a new backbone with
-                each option, and terminate the current Lambda.
-            - When all paths are valid paths in the host graph, add the list
-                of participant nodes to a result in the DynamoDB table.
-- Reporting
-    - Return a serialization of the results from the DynamoDB table.
-- Cleanup
-    - Delete the backbone queue
-    - Delete the results table (after collection)
-"""
 from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, Union
 from inspect import isclass
 import itertools
 import queue
+from functools import lru_cache
 
 import networkx as nx
+
+print("Using fn pointers")
 
 __version__ = "1.2.0"
 
@@ -55,24 +30,27 @@ These operations are slow:
 """
 
 
-def is_node_attr_match(
-    motif_node_attrs: dict, host_graph_id: str, host: nx.Graph
+@lru_cache()
+def _is_node_attr_match(
+    motif_node_id: str, host_node_id: str, motif: nx.Graph, host: nx.Graph
 ) -> bool:
     """
     Check if a node in the host graph matches the attributes in the motif.
 
     Arguments:
-        motif_node_attrs (dict): A dictionary of metadata on a motif node
-        host_graph_id (str): The ID of metadata on the host graph
-        host (nx.Graph): The host graph object
+        motif_node_id (str): The motif node ID
+        host_node_id (str): The host graph ID
+        motif (nx.Graph): The motif graph
+        host (nx.Graph): The host graph
 
     Returns:
         bool: True if the host node matches the attributes in the motif
 
     """
-    host_node = host.nodes[host_graph_id]
+    motif_node = motif.nodes[motif_node_id]
+    host_node = host.nodes[host_node_id]
 
-    for attr, val in motif_node_attrs.items():
+    for attr, val in motif_node.items():
         if attr not in host_node:
             return False
         if host_node[attr] != val:
@@ -81,8 +59,9 @@ def is_node_attr_match(
     return True
 
 
-def is_node_structural_match(
-    motif_node_id: str, host_graph_id: str, motif: nx.Graph, host: nx.Graph
+@lru_cache()
+def _is_node_structural_match(
+    motif_node_id: str, host_node_id: str, motif: nx.Graph, host: nx.Graph
 ) -> bool:
     """
     Check if the motif node here is a valid structural match.
@@ -92,7 +71,7 @@ def is_node_structural_match(
 
     Arguments:
         motif_node_id (str): The motif node ID
-        host_graph_id (str): The host graph ID
+        host_node_id (str): The host graph ID
         motif (nx.Graph): The motif graph
         host (nx.Graph): The host graph
 
@@ -100,7 +79,7 @@ def is_node_structural_match(
         bool: True if the motif node maps to this host node
 
     """
-    return host.degree(host_graph_id) >= motif.degree(motif_node_id)
+    return host.degree(host_node_id) >= motif.degree(motif_node_id)
 
 
 def get_next_backbone_candidates(
@@ -110,6 +89,8 @@ def get_next_backbone_candidates(
     interestingness: dict,
     next_node: str = None,
     directed: bool = True,
+    is_node_structural_match=_is_node_structural_match,
+    is_node_attr_match=_is_node_attr_match,
     isomorphisms_only: bool = False,
 ) -> List[dict]:
     """
@@ -152,7 +133,8 @@ def get_next_backbone_candidates(
         return [
             {next_node: n}
             for n in host.nodes()
-            if is_node_structural_match(next_node, n, motif, host)
+            if is_node_attr_match(next_node, n, motif, host)
+            and is_node_structural_match(next_node, n, motif, host)
         ]
 
     else:
@@ -268,6 +250,7 @@ def get_next_backbone_candidates(
         {**backbone, next_node: c}
         for c in candidate_nodes
         if c not in backbone.values()
+        and is_node_attr_match(next_node, c, motif, host)
         and is_node_structural_match(next_node, c, motif, host)
     ]
 
@@ -337,10 +320,10 @@ def find_motifs_iter(
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
     profile: bool = False,
+    is_node_structural_match=_is_node_structural_match,
+    is_node_attr_match=_is_node_attr_match,
 ) -> Union[
-    int,
-    Generator[dict, None, None],
-    Tuple[Union[int, Generator[dict, None, None]], Any],
+    Generator[dict, None, None], Tuple[Union[int, Generator[dict, None, None]], Any],
 ]:
     """
     Yield mappings from motif node IDs to host graph IDs.
@@ -403,6 +386,8 @@ def find_motifs_iter(
             interestingness,
             directed=directed,
             isomorphisms_only=isomorphisms_only,
+            is_node_structural_match=is_node_structural_match,
+            is_node_attr_match=is_node_attr_match,
         )
 
         for candidate in next_candidate_backbones:
@@ -422,6 +407,8 @@ def find_motifs(
     count_only: bool = False,
     profile: bool = False,
     limit: int = None,
+    is_node_attr_match=_is_node_attr_match,
+    is_node_structural_match=_is_node_structural_match,
     **kwargs,
 ) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
     """
@@ -455,7 +442,15 @@ def find_motifs(
     """
     results = []
     results_count = 0
-    for qresult in find_motifs_iter(motif, host, *args, profile=profile, **kwargs):
+    for qresult in find_motifs_iter(
+        motif,
+        host,
+        *args,
+        profile=profile,
+        is_node_attr_match=is_node_attr_match,
+        is_node_structural_match=is_node_structural_match,
+        **kwargs,
+    ):
         if profile:
             q, result = qresult
         else:
