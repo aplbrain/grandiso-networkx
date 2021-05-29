@@ -1,15 +1,3 @@
-from typing import Any, Dict, Generator, Hashable, List, Optional, Tuple, Union
-from inspect import isclass
-import itertools
-import queue
-from functools import lru_cache
-
-import networkx as nx
-
-print("Using fn pointers")
-
-__version__ = "1.2.0"
-
 """
 In this process, we consider the following operations to be fast:
 
@@ -28,6 +16,16 @@ These operations are slow:
     - But you can do the same with get-downstream-targets and filter an
       attribute search.
 """
+
+from typing import Dict, Generator, Hashable, List, Optional, Union
+from inspect import isclass
+import itertools
+import queue
+from functools import lru_cache
+
+import networkx as nx
+
+__version__ = "2.0.0"
 
 
 @lru_cache()
@@ -319,12 +317,9 @@ def find_motifs_iter(
     queue_=queue.SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
-    profile: bool = False,
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
-) -> Union[
-    Generator[dict, None, None], Tuple[Union[int, Generator[dict, None, None]], Any],
-]:
+) -> Generator[dict, None, None]:
     """
     Yield mappings from motif node IDs to host graph IDs.
 
@@ -341,9 +336,6 @@ def find_motifs_iter(
             number that indicates an ordinality in which to address each node
         directed (bool: None): Whether direction should be considered during
             search. If omitted, this will be based upon the motif directedness.
-        profile (bool: False): SLOWER! Whether to include additional metrics
-            in addition to results. Note that you should only ever use this to
-            debug or understand your results, not for use in production.
         queue_ (queue.Queue): What kind of queue to use.
         hints (dict): A dictionary of initial starting mappings. By default,
             searches for all instances. You can constrain a node by passing a
@@ -352,11 +344,7 @@ def find_motifs_iter(
             default is monomorphisms).
 
     Returns:
-        dict, Tuple[dict, queue.Queue]
-
-        dict: A mappings from motif node IDs to host graph IDs
-        Tuple[dict, queue.Queue]: If `profile` is true. Also includes the
-            current queue that is being used to perform the search.
+        Generator[dict, None, None]
 
     """
     interestingness = interestingness or uniform_node_interestingness(motif)
@@ -392,10 +380,7 @@ def find_motifs_iter(
 
         for candidate in next_candidate_backbones:
             if len(candidate) == len(motif):
-                if profile:
-                    yield q, candidate
-                else:
-                    yield candidate
+                yield candidate
             else:
                 q.put(candidate)
 
@@ -405,12 +390,11 @@ def find_motifs(
     host: nx.Graph,
     *args,
     count_only: bool = False,
-    profile: bool = False,
     limit: int = None,
     is_node_attr_match=_is_node_attr_match,
     is_node_structural_match=_is_node_structural_match,
     **kwargs,
-) -> Union[int, List[dict], Tuple[Union[int, List[dict]], Any]]:
+) -> Union[int, List[dict]]:
     """
     Get a list of mappings from motif node IDs to host graph IDs.
 
@@ -425,19 +409,13 @@ def find_motifs(
     Arguments:
         count_only (bool: False): If True, return only an integer count of the
             number of motifs, rather than a list of mappings.
-        profile (bool: False): SLOWER! Whether to include additional metrics
-            in addition to results. Note that you should only ever use this to
-            debug or understand your results, not for use in production.
         limit (int: None): A limit to place on the number of returned mappings.
             The search will terminate once the limit is reached.
 
 
     Returns:
-        int, List[dict], Tuple[List[dict], queue.Queue]
         int: If `count_only` is True, return the length of the List.
         List[dict]: A list of mappings from motif node IDs to host graph IDs
-        Tuple[List[dict], queue.Queue]: If `profile` is true. Also includes the
-            queue that was used to perform the search.
 
     """
     results = []
@@ -446,37 +424,23 @@ def find_motifs(
         motif,
         host,
         *args,
-        profile=profile,
         is_node_attr_match=is_node_attr_match,
         is_node_structural_match=is_node_structural_match,
         **kwargs,
     ):
-        if profile:
-            q, result = qresult
-        else:
-            result = qresult
+
+        result = qresult
 
         results_count += 1
         if limit and results_count >= limit:
             if count_only:
-                # perform return logic
-                if profile:
-                    return results_count, q
-                else:
-                    return results_count
+                return results_count
             else:
                 if limit and results_count >= limit:
-                    # perform return logic
-                    if profile:
-                        return results, q
                     return results
         if not count_only:
             results.append(result)
 
-    if profile:
-        if count_only:
-            return results_count, q
-        return results, q
     if count_only:
         return results_count
     return results
