@@ -23,7 +23,7 @@ import itertools
 from functools import lru_cache
 
 import networkx as nx
-import .queues
+from .queues import SimpleQueue
 
 __version__ = "2.0.0"
 
@@ -314,7 +314,7 @@ def find_motifs_iter(
     host: nx.Graph,
     interestingness: dict = None,
     directed: bool = None,
-    queue_=queues.SimpleQueue,
+    queue_=SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
     is_node_structural_match=_is_node_structural_match,
