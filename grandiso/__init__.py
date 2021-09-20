@@ -20,7 +20,7 @@ These operations are slow:
 from typing import Dict, Generator, Hashable, List, Optional, Union
 from inspect import isclass
 import itertools
-import queue
+import queues
 from functools import lru_cache
 
 import networkx as nx
@@ -314,7 +314,7 @@ def find_motifs_iter(
     host: nx.Graph,
     interestingness: dict = None,
     directed: bool = None,
-    queue_=queue.SimpleQueue,
+    queue_=queues.SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
     is_node_structural_match=_is_node_structural_match,
@@ -336,7 +336,7 @@ def find_motifs_iter(
             number that indicates an ordinality in which to address each node
         directed (bool: None): Whether direction should be considered during
             search. If omitted, this will be based upon the motif directedness.
-        queue_ (queue.Queue): What kind of queue to use.
+        queue_ (queue.SimpleQueue): What kind of queue to use.
         hints (dict): A dictionary of initial starting mappings. By default,
             searches for all instances. You can constrain a node by passing a
             list with a single dict item: `[{motifId: hostId}]`.
