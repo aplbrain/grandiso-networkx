@@ -20,10 +20,10 @@ These operations are slow:
 from typing import Dict, Generator, Hashable, List, Optional, Union
 from inspect import isclass
 import itertools
-import queues
 from functools import lru_cache
 
 import networkx as nx
+import .queues
 
 __version__ = "2.0.0"
 
