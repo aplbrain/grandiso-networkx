@@ -1,11 +1,11 @@
 import setuptools
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="grandiso",
-    version="2.0.0",
+    version="2.0.1",
     author="Jordan Matelsky",
     author_email="opensource@matelsky.com",
     description="Performant subgraph isomorphism",
