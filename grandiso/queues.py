@@ -3,6 +3,9 @@ import queue
 from enum import Enum
 
 
+SimpleQueue = queue.SimpleQueue
+
+
 class QueuePolicy(Enum):
     """
     An Enum for queue pop policy.
