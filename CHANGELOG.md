@@ -1,10 +1,15 @@
 # CHANGELOG
 
+## [v2.1.0 (Unreleased)](#)
+
+-   Features
+    -   (#23) Adds edge-attribute matching alongside node-attribute matching (thanks @MelomanCool!)
+
 ## [v2.0.1 (Sep 20 2021)](https://pypi.org/project/grandiso/2.0.1/)
 
-- Fixes
-    - Fixes an installation error where older versions of python misread the long description of the package
-    - Fixes a namespace resolution error in `queues`
+-   Fixes
+    -   Fixes an installation error where older versions of python misread the long description of the package
+    -   Fixes a namespace resolution error in `queues`
 
 ## [v2.0.0 (May 28 2021)](https://pypi.org/project/grandiso/2.0.0/)
 
