@@ -4,6 +4,7 @@
 
 -   Features
     -   (#23) Adds edge-attribute matching alongside node-attribute matching (thanks @MelomanCool!), along with tests for attribute-matching (#24)
+    -   (#25) Pass edge-attribute matching functions along through all methods to enable user-defined edge-attribute matching
 
 ## [v2.0.1 (Sep 20 2021)](https://pypi.org/project/grandiso/2.0.1/)
 
