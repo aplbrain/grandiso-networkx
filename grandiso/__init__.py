@@ -17,7 +17,7 @@ These operations are slow:
       attribute search.
 """
 
-from typing import Dict, Generator, Hashable, List, Optional, Union
+from typing import Dict, Generator, Hashable, List, Optional, Union, Tuple
 from inspect import isclass
 import itertools
 from functools import lru_cache
@@ -78,6 +78,38 @@ def _is_node_structural_match(
 
     """
     return host.degree(host_node_id) >= motif.degree(motif_node_id)
+
+
+@lru_cache()
+def _is_edge_attr_match(
+    motif_edge_id: Tuple[str, str],
+    host_edge_id: Tuple[str, str],
+    motif: nx.Graph,
+    host: nx.Graph,
+) -> bool:
+    """
+    Check if an edge in the host graph matches the attributes in the motif.
+
+    Arguments:
+        motif_edge_id (str): The motif edge ID
+        host_edge_id (str): The host edge ID
+        motif (nx.Graph): The motif graph
+        host (nx.Graph): The host graph
+
+    Returns:
+        bool: True if the host edge matches the attributes in the motif
+
+    """
+    motif_edge = motif.edges[motif_edge_id]
+    host_edge = host.edges[host_edge_id]
+
+    for attr, val in motif_edge.items():
+        if attr not in host_edge:
+            return False
+        if host_edge[attr] != val:
+            return False
+
+    return True
 
 
 def get_next_backbone_candidates(
@@ -267,6 +299,12 @@ def get_next_backbone_candidates(
             if all(
                 [
                     host.has_edge(mapping[motif_u], mapping[motif_v])
+                    and _is_edge_attr_match(
+                        (motif_u, motif_v),
+                        (mapping[motif_u], mapping[motif_v]),
+                        motif,
+                        host,
+                    )
                     for motif_u, motif_v in motif.edges
                 ]
             ):
@@ -444,4 +482,3 @@ def find_motifs(
     if count_only:
         return results_count
     return results
-
