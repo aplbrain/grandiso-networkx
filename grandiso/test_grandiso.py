@@ -462,3 +462,48 @@ class TestIterator:
         motif = nx.complete_graph(3)
         with pytest.raises(Exception):
             next(find_motifs_iter(motif, host, hints=[{"F": "X"}]))
+
+
+class TestAttributes:
+    def test_node_attributes(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_node("A", flavor="chocolate")
+        host.add_node("B", flavor="coffee")
+        host.add_node("C", flavor="lint")
+
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["a", "b", "c", "a"])
+        motif.add_node("b", flavor="chocolate")
+
+        assert find_motifs(motif, host, count_only=True) == 1
+
+    def test_edge_attributes(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B", flavor="chocolate")
+        host.add_edge("B", "C", flavor="coffee")
+        host.add_edge("C", "A", flavor="lint")
+
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["a", "b", "c", "a"])
+        motif.add_edge("a", "b", flavor="chocolate")
+
+        assert find_motifs(motif, host) == [{"a": "A", "b": "B", "c": "C"}]
+
+    def test_node_and_edge_attributes(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B", flavor="chocolate")
+        host.add_edge("B", "C", flavor="coffee")
+        host.add_edge("C", "A", flavor="lint")
+        host.add_node("A", flavor="chocolate")
+        host.add_node("B", flavor="coffee")
+        host.add_node("C", flavor="lint")
+
+        motif = nx.DiGraph()
+        nx.add_path(motif, ["a", "b", "c", "a"])
+        motif.add_edge("a", "b", flavor="coffee")
+        motif.add_node("c", flavor="lint")
+
+        assert find_motifs(motif, host) == []
