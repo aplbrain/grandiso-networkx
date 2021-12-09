@@ -121,6 +121,7 @@ def get_next_backbone_candidates(
     directed: bool = True,
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
+    is_edge_attr_match=_is_edge_attr_match,
     isomorphisms_only: bool = False,
 ) -> List[dict]:
     """
@@ -299,7 +300,7 @@ def get_next_backbone_candidates(
             if all(
                 [
                     host.has_edge(mapping[motif_u], mapping[motif_v])
-                    and _is_edge_attr_match(
+                    and is_edge_attr_match(
                         (motif_u, motif_v),
                         (mapping[motif_u], mapping[motif_v]),
                         motif,
@@ -357,6 +358,7 @@ def find_motifs_iter(
     hints: List[Dict[Hashable, Hashable]] = None,
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
+    is_edge_attr_match=_is_edge_attr_match,
 ) -> Generator[dict, None, None]:
     """
     Yield mappings from motif node IDs to host graph IDs.
@@ -414,6 +416,7 @@ def find_motifs_iter(
             isomorphisms_only=isomorphisms_only,
             is_node_structural_match=is_node_structural_match,
             is_node_attr_match=is_node_attr_match,
+            is_edge_attr_match=is_edge_attr_match,
         )
 
         for candidate in next_candidate_backbones:
@@ -431,6 +434,7 @@ def find_motifs(
     limit: int = None,
     is_node_attr_match=_is_node_attr_match,
     is_node_structural_match=_is_node_structural_match,
+    is_edge_attr_match=_is_edge_attr_match,
     **kwargs,
 ) -> Union[int, List[dict]]:
     """
@@ -464,6 +468,7 @@ def find_motifs(
         *args,
         is_node_attr_match=is_node_attr_match,
         is_node_structural_match=is_node_structural_match,
+        is_edge_attr_match=is_edge_attr_match,
         **kwargs,
     ):
 
