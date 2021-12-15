@@ -155,10 +155,10 @@ def get_next_backbone_candidates(
 
     # First check if the backbone is empty. If so, we should choose the most
     # interesting node to start with:
-
     if next_node is None and len(backbone) == 0:
         # This is the starting-case, where we have NO backbone nodes set yet.
-        next_node = [k for k in interestingness.keys()][0]
+        next_node = max(interestingness.keys(),
+                        key=lambda node: interestingness.get(node, 0.0))
         # Let's return ALL possible node choices for this next_node. To do this
         # without being an insane person, let's filter on max degree in host:
         return [
@@ -169,7 +169,7 @@ def get_next_backbone_candidates(
         ]
 
     else:
-        _node_with_greatest_backbone_count: Optional[str] = None
+        _nodes_with_greatest_backbone_count: List[str] = []
         _greatest_backbone_count = 0
         for motif_node_id in motif.nodes:
             if motif_node_id in backbone:
@@ -198,10 +198,11 @@ def get_next_backbone_candidates(
             # If this is the most highly connected node visited so far, then
             # set it as the next node to explore:
             if motif_backbone_connections_count > _greatest_backbone_count:
-                _node_with_greatest_backbone_count = motif_node_id
+                _nodes_with_greatest_backbone_count.append(motif_node_id)
         # Now we have _node_with_greatest_backbone_count as the best candidate
         # for `next_node`.
-        next_node = _node_with_greatest_backbone_count
+        next_node = max(_nodes_with_greatest_backbone_count,
+                        key=lambda node: interestingness.get(node, 0.0))
 
     # Now we have a node `next_node` which we know is connected to the current
     # backbone. Get all edges between `next_node` and nodes in the backbone,
