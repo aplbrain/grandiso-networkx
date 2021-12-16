@@ -1,10 +1,11 @@
 # CHANGELOG
 
-## [v2.1.0 (Unreleased)](#)
+## [v2.1.0 (December 16 2021)](https://pypi.org/project/grandiso/2.1.0/)
 
 -   Features
     -   (#23) Adds edge-attribute matching alongside node-attribute matching (thanks @MelomanCool!), along with tests for attribute-matching (#24)
     -   (#25) Pass edge-attribute matching functions along through all methods to enable user-defined edge-attribute matching
+    -   (#27) Improves usage of the `interestingness` metric for sorting nodes in candidate-finding routing (thanks @aleclearmind!)
 -   Housekeeping
     -   (#26) Added a codecov config file to ignore setup.py from test suite
 
