@@ -3,7 +3,10 @@ import queue
 from enum import Enum
 
 
-SimpleQueue = queue.SimpleQueue
+try:
+    SimpleQueue = queue.SimpleQueue
+except:
+    SimpleQueue = queue.Queue
 
 
 class QueuePolicy(Enum):
@@ -20,7 +23,7 @@ class QueuePolicy(Enum):
     BREADTHFIRST = 2
 
 
-class ProfilingQueue(queue.SimpleQueue):
+class ProfilingQueue(SimpleQueue):
     """
     A simple queue to enable profiling. This queue keeps track of its size over
     time so that you can more easily debug performance.
@@ -42,7 +45,7 @@ class ProfilingQueue(queue.SimpleQueue):
 
         """
         super(ProfilingQueue, self).__init__()
-        self._size_history = queue.SimpleQueue()
+        self._size_history = SimpleQueue()
         self._size = 0
 
     def put(self, *args, **kwargs):
