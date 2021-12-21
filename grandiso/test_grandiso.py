@@ -538,3 +538,19 @@ class TestAttributes:
         motif.add_edge("a", "b", type="delicious")
 
         assert find_motifs(motif, host) == []
+
+
+class TestBrokenMotifFailures:
+    def test_disconnected_motif(self):
+        host = nx.complete_graph(8, nx.DiGraph())
+        motif = nx.DiGraph()
+        motif.add_node("a")
+        motif.add_node("b")
+        with pytest.raises(ValueError):
+            find_motifs(motif, host)
+
+    def test_empty_motif(self):
+        host = nx.complete_graph(8, nx.DiGraph())
+        motif = nx.DiGraph()
+        with pytest.raises(ValueError):
+            find_motifs(motif, host)
