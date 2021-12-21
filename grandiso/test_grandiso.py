@@ -507,3 +507,34 @@ class TestAttributes:
         motif.add_node("c", flavor="lint")
 
         assert find_motifs(motif, host) == []
+
+    def test_attr_not_in_node(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+        host.add_node("A")
+        host.add_node("B")
+        host.add_node("C")
+
+        motif = nx.DiGraph()
+        motif.add_edge("a", "b")
+        motif.add_node("a", flavor="coffee")
+
+        assert find_motifs(motif, host) == []
+
+    def test_attr_not_in_edge(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+        host.add_node("A")
+        host.add_node("B")
+        host.add_node("C")
+
+        motif = nx.DiGraph()
+        motif.add_edge("a", "b", type="delicious")
+
+        assert find_motifs(motif, host) == []
