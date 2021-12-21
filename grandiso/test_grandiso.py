@@ -437,7 +437,7 @@ class TestLimits:
     def test_limit_eq_answer(self):
         host = nx.complete_graph(8)
         motif = nx.complete_graph(3)
-        assert find_motifs(motif, host, count_only=True, limit=336) == 336
+        assert len(find_motifs(motif, host, limit=300)) == 300
 
     def test_limit_gt_answer(self):
         host = nx.complete_graph(8)
