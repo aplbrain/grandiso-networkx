@@ -437,7 +437,7 @@ class TestLimits:
     def test_limit_eq_answer(self):
         host = nx.complete_graph(8)
         motif = nx.complete_graph(3)
-        assert find_motifs(motif, host, count_only=True, limit=336) == 336
+        assert len(find_motifs(motif, host, limit=300)) == 300
 
     def test_limit_gt_answer(self):
         host = nx.complete_graph(8)
@@ -507,3 +507,50 @@ class TestAttributes:
         motif.add_node("c", flavor="lint")
 
         assert find_motifs(motif, host) == []
+
+    def test_attr_not_in_node(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+        host.add_node("A")
+        host.add_node("B")
+        host.add_node("C")
+
+        motif = nx.DiGraph()
+        motif.add_edge("a", "b")
+        motif.add_node("a", flavor="coffee")
+
+        assert find_motifs(motif, host) == []
+
+    def test_attr_not_in_edge(self):
+        host = nx.DiGraph()
+        nx.add_path(host, ["A", "B", "C", "A"])
+        host.add_edge("A", "B")
+        host.add_edge("B", "C")
+        host.add_edge("C", "A")
+        host.add_node("A")
+        host.add_node("B")
+        host.add_node("C")
+
+        motif = nx.DiGraph()
+        motif.add_edge("a", "b", type="delicious")
+
+        assert find_motifs(motif, host) == []
+
+
+class TestBrokenMotifFailures:
+    def test_disconnected_motif(self):
+        host = nx.complete_graph(8, nx.DiGraph())
+        motif = nx.DiGraph()
+        motif.add_node("a")
+        motif.add_node("b")
+        with pytest.raises(ValueError):
+            find_motifs(motif, host)
+
+    def test_empty_motif(self):
+        host = nx.complete_graph(8, nx.DiGraph())
+        motif = nx.DiGraph()
+        with pytest.raises(ValueError):
+            find_motifs(motif, host)

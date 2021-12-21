@@ -25,7 +25,7 @@ from functools import lru_cache
 import networkx as nx
 from .queues import SimpleQueue
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 
 @lru_cache()
@@ -157,8 +157,9 @@ def get_next_backbone_candidates(
     # interesting node to start with:
     if next_node is None and len(backbone) == 0:
         # This is the starting-case, where we have NO backbone nodes set yet.
-        next_node = max(interestingness.keys(),
-                        key=lambda node: interestingness.get(node, 0.0))
+        next_node = max(
+            interestingness.keys(), key=lambda node: interestingness.get(node, 0.0)
+        )
         # Let's return ALL possible node choices for this next_node. To do this
         # without being an insane person, let's filter on max degree in host:
         return [
@@ -201,8 +202,10 @@ def get_next_backbone_candidates(
                 _nodes_with_greatest_backbone_count.append(motif_node_id)
         # Now we have _node_with_greatest_backbone_count as the best candidate
         # for `next_node`.
-        next_node = max(_nodes_with_greatest_backbone_count,
-                        key=lambda node: interestingness.get(node, 0.0))
+        next_node = max(
+            _nodes_with_greatest_backbone_count,
+            key=lambda node: interestingness.get(node, 0.0),
+        )
 
     # Now we have a node `next_node` which we know is connected to the current
     # backbone. Get all edges between `next_node` and nodes in the backbone,
@@ -480,7 +483,10 @@ def find_motifs(
             if count_only:
                 return results_count
             else:
-                if limit and results_count >= limit:
+                # Subtract 1 from results_count because we have not yet
+                # added the new result to the results list, but we HAVE
+                # already added +1 to the count.
+                if limit and (results_count - 1) >= limit:
                     return results
         if not count_only:
             results.append(result)
