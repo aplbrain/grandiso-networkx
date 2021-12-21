@@ -5,7 +5,7 @@
 -   Fixes
     -   Fixed a minor bug in which counts were one-off when using `count_only=False` and `limit=int`.
     -   Achieved 100% test coverage, woo!
-    -   Added support for Python 3.6 (thanks @aleclearmind!)
+    -   Added support for Python 3.6 (thanks @aleclearmind!), and added 3.9 and 3.10 to CI.
 
 ## [v2.1.0 (December 16 2021)](https://pypi.org/project/grandiso/2.1.0/)
 
