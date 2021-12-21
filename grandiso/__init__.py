@@ -25,7 +25,7 @@ from functools import lru_cache
 import networkx as nx
 from .queues import SimpleQueue
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 
 @lru_cache()
