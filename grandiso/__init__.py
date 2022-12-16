@@ -112,18 +112,77 @@ def _is_edge_attr_match(
     return True
 
 
+KEYWORDS = ("__min_hop__", "__max_hop__")
+
+
+@lru_cache()
+def _is_edge_attr_match_with_hop(
+    motif_edge_id: Tuple[str, str],
+    host_edge_id: Tuple[str, str],
+    motif: nx.Graph,
+    host: nx.Graph,
+) -> bool:
+    """
+    Check if an edge in the host graph matches the attributes in the motif.
+
+    Arguments:
+        motif_edge_id (str): The motif edge ID
+        host_edge_id (str): The host edge ID
+        motif (nx.Graph): The motif graph
+        host (nx.Graph): The host graph
+
+    Returns:
+        bool: True if the host edge matches the attributes in the motif
+
+    """
+    motif_edge = motif.edges[motif_edge_id]
+    host_edge = host.edges[host_edge_id]
+
+    for attr, val in motif_edge.items():
+        if attr in KEYWORDS:
+            continue
+        if attr not in host_edge:
+            return False
+        if host_edge[attr] != val:
+            return False
+
+    return True
+
+
+def _node_out_hoping(host: nx.DiGraph, start_node_id, min_hop, max_hop) -> set:
+    result = []
+    cur_hop = min_hop
+    if cur_hop == 0:
+        result.append(start_node_id)
+        cur_hop += 1
+    stack = [[start_node_id]]
+    # bfs until reading max_hop
+    while stack and cur_hop < max_hop:
+        curr_node_ids = stack.pop()
+        next_node_ids = []
+        for node_id in curr_node_ids:
+            next_node_ids.extend(host.adj[node_id])
+        result.extend(next_node_ids)
+        cur_hop += 1
+        stack.append(set(next_node_ids))
+
+    result = set(result)
+    return result
+
+
 def get_next_backbone_candidates(
     backbone: dict,
     motif: nx.Graph,
     host: nx.Graph,
     interestingness: dict,
+    last_node: str = None,
     next_node: str = None,
     directed: bool = True,
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
-    is_edge_attr_match=_is_edge_attr_match,
+    is_edge_attr_match=_is_edge_attr_match_with_hop,
     isomorphisms_only: bool = False,
-) -> List[dict]:
+) -> List[Tuple[dict, str]]:
     """
     Get a list of candidate node assignments for the next "step" of this map.
 
@@ -163,7 +222,7 @@ def get_next_backbone_candidates(
         # Let's return ALL possible node choices for this next_node. To do this
         # without being an insane person, let's filter on max degree in host:
         return [
-            {next_node: n}
+            ({next_node: n}, next_node)
             for n in host.nodes
             if is_node_attr_match(next_node, n, motif, host)
             and is_node_structural_match(next_node, n, motif, host)
@@ -237,7 +296,11 @@ def get_next_backbone_candidates(
         if directed:
             if source is not None:
                 # this is a "from" edge:
-                candidate_nodes = list(host.adj[backbone[source]])
+                candidate_nodes = list(_node_out_hoping(
+                    host=host, start_node_id=backbone[source],
+                    min_hop=motif.edges[last_node, next_node].get("__min_hop__", 1),
+                    max_hop=motif.edges[last_node, next_node].get("__max_hop__", 2),
+                ))
             elif target is not None:
                 # this is a "from" edge:
                 candidate_nodes = list(host.pred[backbone[target]])
@@ -284,8 +347,7 @@ def get_next_backbone_candidates(
     tentative_results = [
         {**backbone, next_node: c}
         for c in candidate_nodes
-        if c not in backbone.values()
-        and is_node_attr_match(next_node, c, motif, host)
+        if is_node_attr_match(next_node, c, motif, host)
         and is_node_structural_match(next_node, c, motif, host)
     ]
 
@@ -301,18 +363,13 @@ def get_next_backbone_candidates(
 
     for mapping in tentative_results:
         if len(mapping) == len(motif):
-            if all(
-                [
-                    host.has_edge(mapping[motif_u], mapping[motif_v])
-                    and is_edge_attr_match(
-                        (motif_u, motif_v),
-                        (mapping[motif_u], mapping[motif_v]),
-                        motif,
-                        host,
-                    )
-                    for motif_u, motif_v in motif.edges
-                ]
-            ):
+            for motif_u, motif_v in motif.edges:
+                host_u , host_v = mapping[motif_u], mapping[motif_v]
+                if host_u == host_v and motif.edges[motif_u, motif_v].get("__min_hop__", 1) == 0:
+                    continue
+                if not is_edge_attr_match((motif_u, motif_v), (host_u , host_v), motif, host):
+                    break
+            else:
                 # This is a "complete" match!
                 monomorphism_candidates.append(mapping)
         else:
@@ -320,7 +377,7 @@ def get_next_backbone_candidates(
             monomorphism_candidates.append(mapping)
 
     if not isomorphisms_only:
-        return monomorphism_candidates
+        return list(zip(monomorphism_candidates, [next_node]*len(monomorphism_candidates)))
 
     # Additionally, if isomorphisms_only == True, we can use this opportunity
     # to confirm that no spurious edges exist in the induced subgraph:
@@ -338,7 +395,7 @@ def get_next_backbone_candidates(
                 break
         else:
             isomorphism_candidates.append(result)
-    return isomorphism_candidates
+    return list(zip(isomorphism_candidates, [next_node]*len(isomorphism_candidates)))
 
 
 def uniform_node_interestingness(motif: nx.Graph) -> dict:
@@ -362,7 +419,7 @@ def find_motifs_iter(
     hints: List[Dict[Hashable, Hashable]] = None,
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
-    is_edge_attr_match=_is_edge_attr_match,
+    is_edge_attr_match=_is_edge_attr_match_with_hop,
 ) -> Generator[dict, None, None]:
     """
     Yield mappings from motif node IDs to host graph IDs.
@@ -404,30 +461,30 @@ def find_motifs_iter(
 
     # Kick off the queue with an empty candidate:
     if hints is None or hints == []:
-        q.put({})
+        q.put(({}, None))
     else:
         for hint in hints:
-            q.put(hint)
-
+            q.put((hint, None))
     while not q.empty():
-        new_backbone = q.get()
+        new_backbone, last_node = q.get()
         next_candidate_backbones = get_next_backbone_candidates(
             new_backbone,
             motif,
             host,
             interestingness,
             directed=directed,
+            last_node=last_node,
             isomorphisms_only=isomorphisms_only,
             is_node_structural_match=is_node_structural_match,
             is_node_attr_match=is_node_attr_match,
             is_edge_attr_match=is_edge_attr_match,
         )
 
-        for candidate in next_candidate_backbones:
+        for candidate, last_node in next_candidate_backbones:
             if len(candidate) == len(motif):
                 yield candidate
             else:
-                q.put(candidate)
+                q.put((candidate, last_node))
 
 
 def find_motifs(

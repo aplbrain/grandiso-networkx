@@ -554,3 +554,22 @@ class TestBrokenMotifFailures:
         motif = nx.DiGraph()
         with pytest.raises(ValueError):
             find_motifs(motif, host)
+
+
+def test_edge_hopping():
+    host = nx.DiGraph()
+    host.add_edge("A", "B")
+    host.add_edge("B", "C")
+    host.add_edge("A", "D")
+
+    motif = nx.DiGraph()
+    motif.add_edge("a", "b", __min_hop__ = 0, __max_hop__ = 2)
+
+    res = list(find_motifs_iter(motif, host))
+    assert len(res) == 7
+    check = [
+        {'a': 'A', 'b': 'D'}, {'a': 'A', 'b': 'B'}, {'a': 'A', 'b': 'A'},
+        {'a': 'B', 'b': 'B'}, {'a': 'B', 'b': 'C'}, {'a': 'C', 'b': 'C'},
+        {'a': 'D', 'b': 'D'}]
+    key = lambda it: (it["a"], it["b"])
+    assert sorted(res, key=key) == sorted(check, key=key)
