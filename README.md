@@ -2,8 +2,7 @@
 
 <p align="center">
 <a href="https://codecov.io/gh/aplbrain/grandiso-networkx/"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/aplbrain/grandiso-networkx?style=for-the-badge"></a>
-<a href="https://github.com/aplbrain/grandiso-networkx/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/aplbrain/grandiso-networkx/Python%20package?style=for-the-badge"></a>
-<a href="https://bossdb.org/tools/DotMotif"><img src="https://img.shields.io/badge/Pretty Dope-👌-00ddcc.svg?style=for-the-badge" /></a>
+<a href="https://github.com/aplbrain/grandiso-networkx/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/aplbrain/grandiso-networkx/python-package.yml?branch=master&style=for-the-badge"></a><a href="https://bossdb.org/tools/DotMotif"><img src="https://img.shields.io/badge/Pretty Dope-👌-00ddcc.svg?style=for-the-badge" /></a>
 <img alt="GitHub" src="https://img.shields.io/github/license/aplbrain/grandiso-networkx?style=for-the-badge">
 <a href="https://pypi.org/project/grandiso/"><img alt="PyPI" src="https://img.shields.io/pypi/v/grandiso?style=for-the-badge"></a>
 </p>
