@@ -200,6 +200,7 @@ def get_next_backbone_candidates(
             # set it as the next node to explore:
             if motif_backbone_connections_count > _greatest_backbone_count:
                 _nodes_with_greatest_backbone_count.append(motif_node_id)
+                _greatest_backbone_count = motif_backbone_connections_count
         # Now we have _node_with_greatest_backbone_count as the best candidate
         # for `next_node`.
         next_node = max(
