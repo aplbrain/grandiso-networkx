@@ -18,12 +18,10 @@ These operations are slow:
 """
 
 from typing import Dict, Generator, Hashable, List, Optional, Union, Tuple
-from inspect import isclass
 import itertools
 from functools import lru_cache
 
 import networkx as nx
-from .queues import SimpleQueue
 
 __version__ = "2.1.1"
 
@@ -162,12 +160,11 @@ def get_next_backbone_candidates(
         )
         # Let's return ALL possible node choices for this next_node. To do this
         # without being an insane person, let's filter on max degree in host:
-        return [
-            {next_node: n}
-            for n in host.nodes
-            if is_node_attr_match(next_node, n, motif, host)
-            and is_node_structural_match(next_node, n, motif, host)
-        ]
+        for n in host.nodes:
+            if is_node_attr_match(next_node, n, motif, host) \
+            and is_node_structural_match(next_node, n, motif, host):
+                yield {next_node: n}
+        return
 
     else:
         _nodes_with_greatest_backbone_count: List[str] = []
@@ -282,13 +279,12 @@ def get_next_backbone_candidates(
             + "empty backbone to this function?)"
         )
 
-    tentative_results = [
-        {**backbone, next_node: c}
-        for c in candidate_nodes
-        if c not in backbone.values()
-        and is_node_attr_match(next_node, c, motif, host)
-        and is_node_structural_match(next_node, c, motif, host)
-    ]
+    def tentative_results():
+        for c in candidate_nodes:
+            if c not in backbone.values() \
+            and is_node_attr_match(next_node, c, motif, host) \
+            and is_node_structural_match(next_node, c, motif, host):
+                yield {**backbone, next_node: c}
 
     # One last filtering step here. This is to catch the cases where you have
     # successfully mapped each node, and the final node has some valid
@@ -298,49 +294,49 @@ def get_next_backbone_candidates(
     # in find_motifs that len(motif) == len(mapping), we will discover that the
     # mapping is "complete" even though we haven't yet checked it at all.
 
-    monomorphism_candidates = []
-
-    for mapping in tentative_results:
-        if len(mapping) == len(motif):
-            if all(
-                [
-                    host.has_edge(mapping[motif_u], mapping[motif_v])
-                    and is_edge_attr_match(
-                        (motif_u, motif_v),
-                        (mapping[motif_u], mapping[motif_v]),
-                        motif,
-                        host,
-                    )
-                    for motif_u, motif_v in motif.edges
-                ]
-            ):
-                # This is a "complete" match!
-                monomorphism_candidates.append(mapping)
-        else:
-            # This is a partial match, so we'll continue building.
-            monomorphism_candidates.append(mapping)
+    def monomorphism_candidates():
+        for mapping in tentative_results():
+            if len(mapping) == len(motif):
+                if all(
+                    [
+                        host.has_edge(mapping[motif_u], mapping[motif_v])
+                        and is_edge_attr_match(
+                            (motif_u, motif_v),
+                            (mapping[motif_u], mapping[motif_v]),
+                            motif,
+                            host,
+                        )
+                        for motif_u, motif_v in motif.edges
+                    ]
+                ):
+                    # This is a "complete" match!
+                    yield mapping
+            else:
+                # This is a partial match, so we'll continue building.
+                yield mapping
 
     if not isomorphisms_only:
-        return monomorphism_candidates
+        yield from monomorphism_candidates()
+        return
 
     # Additionally, if isomorphisms_only == True, we can use this opportunity
     # to confirm that no spurious edges exist in the induced subgraph:
-    isomorphism_candidates = []
-    for result in monomorphism_candidates:
-        for (motif_u, motif_v) in itertools.product(result.keys(), result.keys()):
-            # if the motif has this edge, then it doesn't rule any of the
-            # above results out as an isomorphism.
-            # if the motif does NOT have the edge, then NO RESULT may have
-            # the equivalent edge in the host graph:
-            if not motif.has_edge(motif_u, motif_v) and host.has_edge(
-                result[motif_u], result[motif_v]
-            ):
-                # this is a violation.
-                break
-        else:
-            isomorphism_candidates.append(result)
-    return isomorphism_candidates
+    def isomorphism_candidates():
+        for result in monomorphism_candidates():
+            for (motif_u, motif_v) in itertools.product(result.keys(), result.keys()):
+                # if the motif has this edge, then it doesn't rule any of the
+                # above results out as an isomorphism.
+                # if the motif does NOT have the edge, then NO RESULT may have
+                # the equivalent edge in the host graph:
+                if not motif.has_edge(motif_u, motif_v) and host.has_edge(
+                    result[motif_u], result[motif_v]
+                ):
+                    # this is a violation.
+                    break
+            else:
+                yield result
 
+    yield from isomorphism_candidates()
 
 def uniform_node_interestingness(motif: nx.Graph) -> dict:
     """
@@ -358,7 +354,6 @@ def find_motifs_iter(
     host: nx.Graph,
     interestingness: dict = None,
     directed: bool = None,
-    queue_=SimpleQueue,
     isomorphisms_only: bool = False,
     hints: List[Dict[Hashable, Hashable]] = None,
     is_node_structural_match=_is_node_structural_match,
@@ -381,7 +376,6 @@ def find_motifs_iter(
             number that indicates an ordinality in which to address each node
         directed (bool: None): Whether direction should be considered during
             search. If omitted, this will be based upon the motif directedness.
-        queue_ (queue.SimpleQueue): What kind of queue to use.
         hints (dict): A dictionary of initial starting mappings. By default,
             searches for all instances. You can constrain a node by passing a
             list with a single dict item: `[{motifId: hostId}]`.
@@ -401,35 +395,32 @@ def find_motifs_iter(
         else:
             directed = False
 
-    q = queue_() if isclass(queue_) else queue_
+    # List of starting paths, defaults to searching all instances if hints is empty
+    paths = hints if hints else [{}]
 
-    # Kick off the queue with an empty candidate:
-    if hints is None or hints == []:
-        q.put({})
-    else:
-        for hint in hints:
-            q.put(hint)
+    # Graph path traversal function
+    def walk(path):
+        if path and len(path) == len(motif):
+            # Path complete
+            yield path
+        else:
+            # Iterate over path candidates
+            for candidate in get_next_backbone_candidates(
+                path,
+                motif,
+                host,
+                interestingness,
+                directed=directed,
+                isomorphisms_only=isomorphisms_only,
+                is_node_structural_match=is_node_structural_match,
+                is_node_attr_match=is_node_attr_match,
+                is_edge_attr_match=is_edge_attr_match,
+            ):
+                yield from walk(candidate)
 
-    while not q.empty():
-        new_backbone = q.get()
-        next_candidate_backbones = get_next_backbone_candidates(
-            new_backbone,
-            motif,
-            host,
-            interestingness,
-            directed=directed,
-            isomorphisms_only=isomorphisms_only,
-            is_node_structural_match=is_node_structural_match,
-            is_node_attr_match=is_node_attr_match,
-            is_edge_attr_match=is_edge_attr_match,
-        )
-
-        for candidate in next_candidate_backbones:
-            if len(candidate) == len(motif):
-                yield candidate
-            else:
-                q.put(candidate)
-
+    # Traverse graph and yield mappings
+    for path in paths:
+        yield from walk(path)
 
 def find_motifs(
     motif: nx.Graph,
