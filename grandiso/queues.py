@@ -5,7 +5,7 @@ from enum import Enum
 
 try:
     SimpleQueue = queue.SimpleQueue
-except:
+except ImportError:
     SimpleQueue = queue.Queue
 
 

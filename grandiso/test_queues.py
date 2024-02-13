@@ -18,7 +18,7 @@ def test_empty(queue, queue_args):
     q = queue(*queue_args)
     assert q.empty()
     q.put(1)
-    assert q.empty() == False
+    assert q.empty() is False
     q.get()
     assert q.empty()
 
