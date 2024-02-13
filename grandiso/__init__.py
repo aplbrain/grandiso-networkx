@@ -17,13 +17,13 @@ These operations are slow:
       attribute search.
 """
 
-from typing import Dict, Generator, Hashable, List, Optional, Union, Tuple
+from typing import Dict, Generator, Hashable, List, Union, Tuple
 import itertools
 from functools import lru_cache
 
 import networkx as nx
 
-__version__ = "2.1.1"
+__version__ = "2.2.0"
 
 
 @lru_cache()
@@ -161,8 +161,9 @@ def get_next_backbone_candidates(
         # Let's return ALL possible node choices for this next_node. To do this
         # without being an insane person, let's filter on max degree in host:
         for n in host.nodes:
-            if is_node_attr_match(next_node, n, motif, host) \
-            and is_node_structural_match(next_node, n, motif, host):
+            if is_node_attr_match(
+                next_node, n, motif, host
+            ) and is_node_structural_match(next_node, n, motif, host):
                 yield {next_node: n}
         return
 
@@ -248,7 +249,7 @@ def get_next_backbone_candidates(
         # This is neato :) It means that there are multiple edges in the host
         # graph that we can use to downselect the number of candidate nodes.
         candidate_nodes_set = set()
-        for (source, _, target) in required_edges:
+        for source, _, target in required_edges:
             if directed:
                 if source is not None:
                     # this is a "from" edge:
@@ -281,9 +282,11 @@ def get_next_backbone_candidates(
 
     def tentative_results():
         for c in candidate_nodes:
-            if c not in backbone.values() \
-            and is_node_attr_match(next_node, c, motif, host) \
-            and is_node_structural_match(next_node, c, motif, host):
+            if (
+                c not in backbone.values()
+                and is_node_attr_match(next_node, c, motif, host)
+                and is_node_structural_match(next_node, c, motif, host)
+            ):
                 yield {**backbone, next_node: c}
 
     # One last filtering step here. This is to catch the cases where you have
@@ -323,7 +326,7 @@ def get_next_backbone_candidates(
     # to confirm that no spurious edges exist in the induced subgraph:
     def isomorphism_candidates():
         for result in monomorphism_candidates():
-            for (motif_u, motif_v) in itertools.product(result.keys(), result.keys()):
+            for motif_u, motif_v in itertools.product(result.keys(), result.keys()):
                 # if the motif has this edge, then it doesn't rule any of the
                 # above results out as an isomorphism.
                 # if the motif does NOT have the edge, then NO RESULT may have
@@ -337,6 +340,7 @@ def get_next_backbone_candidates(
                 yield result
 
     yield from isomorphism_candidates()
+
 
 def uniform_node_interestingness(motif: nx.Graph) -> dict:
     """
@@ -421,6 +425,7 @@ def find_motifs_iter(
     # Traverse graph and yield mappings
     for path in paths:
         yield from walk(path)
+
 
 def find_motifs(
     motif: nx.Graph,

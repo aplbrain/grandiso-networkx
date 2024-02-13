@@ -11,19 +11,21 @@ all_queues = [
 
 
 @pytest.mark.parametrize(
-    "queue,queue_args", all_queues,
+    "queue,queue_args",
+    all_queues,
 )
 def test_empty(queue, queue_args):
     q = queue(*queue_args)
     assert q.empty()
     q.put(1)
-    assert q.empty() == False
+    assert q.empty() is False
     q.get()
     assert q.empty()
 
 
 @pytest.mark.parametrize(
-    "queue,queue_args", all_queues,
+    "queue,queue_args",
+    all_queues,
 )
 def test_can_put_and_pop(queue, queue_args):
     q = queue(*queue_args)

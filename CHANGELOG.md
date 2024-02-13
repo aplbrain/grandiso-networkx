@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [v2.2.0 (January 11 2022)](https://pypi.org/project/grandiso/2.2.0/)
+
+-   Features
+    -   (#39) Adds streaming match generators (thanks @davidmezzetti!)
+-   Fixes
+    -   (#37) Improve performance of `find_motifs` by remembering to actually update `_greatest_backbone_count` (thanks @nobutoba!)
+
 ## [v2.1.1 (December 21 2021)](https://pypi.org/project/grandiso/2.1.0/)
 
 -   Fixes
