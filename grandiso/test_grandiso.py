@@ -318,7 +318,7 @@ def _random_host(directed=False, n=20, p=0.1):
 def _random_directed_motif():
     motif = _random_motif()
     dmotif = nx.DiGraph()
-    for (u, v) in motif.edges():
+    for u, v in motif.edges():
         dmotif.add_edge(*random.choice([(u, v), (v, u)]))
     return dmotif
 
