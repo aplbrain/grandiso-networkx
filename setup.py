@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="grandiso",
-    version="2.1.1",
+    version="2.2.0",
     author="Jordan Matelsky",
     author_email="opensource@matelsky.com",
     description="Performant subgraph isomorphism",
@@ -18,4 +18,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    install_requires=["networkx>=2.5.1"],
 )

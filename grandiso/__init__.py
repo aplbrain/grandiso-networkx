@@ -17,13 +17,13 @@ These operations are slow:
       attribute search.
 """
 
-from typing import Dict, Generator, Hashable, List, Optional, Union, Tuple
+from typing import Dict, Generator, Hashable, List, Union, Tuple
 import itertools
 from functools import lru_cache
 
 import networkx as nx
 
-__version__ = "2.1.1"
+__version__ = "2.2.0"
 
 
 @lru_cache()
