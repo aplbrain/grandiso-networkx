@@ -164,6 +164,7 @@ def get_next_backbone_candidates(
             if is_node_attr_match(
                 next_node, n, motif, host
             ) and is_node_structural_match(next_node, n, motif, host):
+                print({next_node: n},"(Base Case) Next Node used to find candidate node")
                 yield {next_node: n}
         return
 
@@ -205,6 +206,7 @@ def get_next_backbone_candidates(
             _nodes_with_greatest_backbone_count,
             key=lambda node: interestingness.get(node, 0.0),
         )
+        print({next_node},"Next Node used to find candidate node")
 
     # Now we have a node `next_node` which we know is connected to the current
     # backbone. Get all edges between `next_node` and nodes in the backbone,
@@ -271,6 +273,7 @@ def get_next_backbone_candidates(
                     candidate_nodes_from_this_edge
                 )
         candidate_nodes = list(candidate_nodes_set)
+        print(candidate_nodes,"Candidate Nodes ")
 
     elif len(required_edges) == 0:
         # Somehow you found a node that doesn't have any edges. This is bad.
@@ -287,6 +290,8 @@ def get_next_backbone_candidates(
                 and is_node_attr_match(next_node, c, motif, host)
                 and is_node_structural_match(next_node, c, motif, host)
             ):
+               
+                print("tentative results", {**backbone, next_node: c})
                 yield {**backbone, next_node: c}
 
     # One last filtering step here. This is to catch the cases where you have
@@ -313,12 +318,14 @@ def get_next_backbone_candidates(
                     ]
                 ):
                     # This is a "complete" match!
+                    print("monomorphism_candidates() complete match", mapping)
                     yield mapping
             else:
                 # This is a partial match, so we'll continue building.
                 yield mapping
 
     if not isomorphisms_only:
+
         yield from monomorphism_candidates()
         return
 
@@ -337,6 +344,7 @@ def get_next_backbone_candidates(
                     # this is a violation.
                     break
             else:
+                print("isonomorphism_candidates() complete match", result)
                 yield result
 
     yield from isomorphism_candidates()
@@ -403,12 +411,20 @@ def find_motifs_iter(
     paths = hints if hints else [{}]
 
     # Graph path traversal function
-    def walk(path):
+    recursive_depth_states = {}
+    def walk(path,recursive_level = 1,recursive_id = [0]):
+        recursive_id[0] += 1
+        print(recursive_level,"recursive_level _")
+        print(recursive_id[0],"recursive_id _")
+
+        print('\n')
         if path and len(path) == len(motif):
             # Path complete
+            print(path,"path complete from find_motifs iter() loop")
             yield path
         else:
             # Iterate over path candidates
+            candidate_paths = []
             for candidate in get_next_backbone_candidates(
                 path,
                 motif,
@@ -419,12 +435,140 @@ def find_motifs_iter(
                 is_node_structural_match=is_node_structural_match,
                 is_node_attr_match=is_node_attr_match,
                 is_edge_attr_match=is_edge_attr_match,
-            ):
-                yield from walk(candidate)
+            ):  
+                print(candidate," candidate extracted from next backbone walk() function from  find_motifs iter")
+                print(recursive_level,"recursive_level -")
+                print(recursive_id[0],"recursive_id -")
+                print('\n')
+                candidate_paths.append(candidate)
+                print(candidate_paths,"candidate paths")
+                yield from walk(candidate,recursive_level + 1, recursive_id)
+
+            
+            if recursive_level not in recursive_depth_states:
+                recursive_depth_states[recursive_level] = []
+            recursive_depth_states[recursive_level].extend(candidate_paths)
+
 
     # Traverse graph and yield mappings
+    
     for path in paths:
+        print(path,"path from find_motifs_iter() loop")
         yield from walk(path)
+
+    states = []
+    for key in recursive_depth_states:
+        states.append({key:recursive_depth_states[key]})
+
+    print(recursive_depth_states,'recursive_depth_states')
+    print('\n')
+    print('tree_root_paths')
+    root_trees = make_root_trees(recursive_depth_states)
+    print_root_trees(root_trees)
+
+
+def get_roots(trees):
+    roots = []
+    for path in trees.keys():
+        if len(path.split(",")) == 1:
+            roots.append(path)
+    return roots
+
+def print_edges(level, is_last_child):
+    """Generates a string with the appropriate edges for the current tree level."""
+    edge = ""
+    for i in range(level):
+        edge += "|  "
+    if level > 0:
+        edge += "|--" if not is_last_child else "`--"
+    return edge
+
+
+def dfs(graph, node, level=0):
+    """Performs a depth-first search and prints each node with a visual representation of edges."""
+    children = graph.get(node, [])
+    for i, child in enumerate(children):
+        is_last_child = i == (len(children) - 1)
+        edge = print_edges(level, is_last_child)
+        print(f"{edge}{child}")
+        dfs(graph, child, level + 1)
+
+def print_root_trees(trees):
+    roots = get_roots(trees)
+    for root in roots:
+        print(root)
+        dfs(trees, root, 0)
+
+
+
+        
+def make_root_trees(recursive_depth_states):
+    levels = sorted(list(recursive_depth_states.keys()))
+    
+    trees = {}
+    for i in range(len(levels)):
+
+        level = levels[i]
+        for path in recursive_depth_states[level]:
+
+            trees[get_path_str(path)] = []
+
+            if i == len(levels)-1:
+                continue
+            
+            next_level = level+1
+           
+            for next_path in recursive_depth_states[next_level]:
+
+                keys = list(path.keys())
+                isExpanded = True
+                for i in range(len(keys)):
+                    key_one = keys[i]
+                    
+                    if key_one not in next_path:
+                        isExpanded = False
+                        break
+                    if path[key_one] != next_path[key_one]:
+                        isExpanded = False
+                        break
+              
+                if isExpanded:
+                    trees[get_path_str(path)].append(get_path_str(next_path))
+
+    return trees
+
+
+def get_path_str(path):
+    res = []
+    for key in path.keys():
+        res.append(key+':'+path[key])
+    return ",".join(res)
+
+
+def print_trees(trees):
+    complete_paths =[]
+    all_paths = []
+    for path in trees:
+        if len(path.split(",")) == 4:
+            complete_paths.append(path)
+        all_paths.append(path)
+
+    for path in complete_paths:
+        print_tree(path,trees)
+
+    
+def print_tree(complete_path,trees):
+    res = []
+    current_path = complete_path
+    while current_path != None:
+        res.append(current_path)
+        current_path = trees[current_path]
+    res = res[::-1]
+    print(res)
+    print('\n')
+
+
+
 
 
 def find_motifs(
@@ -461,6 +605,7 @@ def find_motifs(
         List[dict]: A list of mappings from motif node IDs to host graph IDs
 
     """
+    print("find_motifs() called")
     results = []
     results_count = 0
     for qresult in find_motifs_iter(
@@ -490,4 +635,5 @@ def find_motifs(
 
     if count_only:
         return results_count
+    print("results",results)
     return results
