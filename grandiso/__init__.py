@@ -363,6 +363,7 @@ def find_motifs_iter(
     is_node_structural_match=_is_node_structural_match,
     is_node_attr_match=_is_node_attr_match,
     is_edge_attr_match=_is_edge_attr_match,
+    best_match=[None],
 ) -> Generator[dict, None, None]:
     """
     Yield mappings from motif node IDs to host graph IDs.
@@ -404,6 +405,10 @@ def find_motifs_iter(
 
     # Graph path traversal function
     def walk(path):
+
+        if best_match[0] is None or len(best_match[0]) < len(path):
+            best_match[0] = dict(path)
+
         if path and len(path) == len(motif):
             # Path complete
             yield path
